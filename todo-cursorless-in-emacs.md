@@ -25,6 +25,12 @@ eg. "air bat cap <cursorless command> drum each fine"
 
 # MY NEXT STEPS
 
+NEXT:
+- get emacs writing its state
+  - get-state function mostly done
+  - use hooks to write on each change
+  - probably want serial numbers
+
 phil sez: get emacs writing its state first
 
 - install vscode & cursorless (DONE?)

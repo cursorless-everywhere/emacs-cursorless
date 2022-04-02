@@ -11,6 +11,7 @@
         (overlay-put o 'face `((:background ,color)))))))
 
 (update-overlays '((1 "coral") (3 "lightblue")))
+(update-overlays '())
 
 (defvar serial-number 0)
 
@@ -30,17 +31,20 @@
    (line-number-at-pos (- (window-end) 1))
    ;; TODO: where the cursor is. cursorless wants line/column, not offset.
    ;; also, if there's a selection (ie. if transient mark is on)
+   (line-and-column (point)) ; point/cursor position
+   ;; TODO: selection (mark) position
    ))
 
-(line-number-at-pos (- (window-end) 1))
+(defun line-and-column (pos)
+  ;; (current-column) is WRONG, we want # of characters since start of line, NOT
+  ;; the logical position. (eg. tab counts as 1 char).
 
+  ;; cursorless line numbers are 1-indexed. not sure about column numbers.
+  (list (line-number-at-pos pos t)
+        (save-excursion
+          (goto-char pos)
+          (- pos (line-beginning-position)))))
 
-;; alksjdflkjsdf
-;; sjd
-;;
-;;
-;;
-;;
-;;
-;;
-;;
+(defun lac ()
+  (interactive)
+  (message "%s" (line-and-column (point))))
