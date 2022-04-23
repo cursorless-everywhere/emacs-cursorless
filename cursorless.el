@@ -23,27 +23,36 @@
 ;;   looks like it does.
 ;; - where the cursors/selections are
 (defun get-state ()
+  ;; produces something that can be passed to json-serialize
   (list
-   serial-number
-   (buffer-file-name)
+   'serial-number serial-number
+   'buffer-file-name (buffer-file-name)
    ;; top & bottom visible lines
-   (line-number-at-pos (window-start))
-   (line-number-at-pos (- (window-end) 1))
+   'line-range  (vector (line-number-at-pos (window-start))
+                        (line-number-at-pos (- (window-end) 1)))
    ;; TODO: where the cursor is. cursorless wants line/column, not offset.
-   ;; also, if there's a selection (ie. if transient mark is on)
-   (line-and-column (point)) ; point/cursor position
-   ;; TODO: selection (mark) position
+   ;; TODO: also, the mark if there's a selection (ie. if transient mark is on)
+   'cursor (line-and-column (point))   ; point/cursor position
    ))
+
+(defun dump-state (file)
+  (interactive "F")
+  (let ((state (get-state)))
+   (with-temp-file file
+     (json-insert state)
+     (json-pretty-print-buffer))))
+
+(dump-state "~/cursorless/state")
 
 (defun line-and-column (pos)
   ;; (current-column) is WRONG, we want # of characters since start of line, NOT
   ;; the logical position. (eg. tab counts as 1 char).
 
   ;; cursorless line numbers are 1-indexed. not sure about column numbers.
-  (list (line-number-at-pos pos t)
-        (save-excursion
-          (goto-char pos)
-          (- pos (line-beginning-position)))))
+  (vector (line-number-at-pos pos t)
+          (save-excursion
+            (goto-char pos)
+            (- pos (line-beginning-position)))))
 
 (defun lac ()
   (interactive)
