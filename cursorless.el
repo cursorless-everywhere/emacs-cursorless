@@ -30,9 +30,9 @@
    ;; top & bottom visible lines
    'line-range  (vector (line-number-at-pos (window-start))
                         (line-number-at-pos (- (window-end) 1)))
-   ;; TODO: where the cursor is. cursorless wants line/column, not offset.
-   ;; TODO: also, the mark if there's a selection (ie. if transient mark is on)
+   ;; where the cursor is. cursorless wants line/column, not offset.
    'cursor (line-and-column (point))   ; point/cursor position
+   ;; TODO: also, the mark if there's a selection (ie. if transient mark is on)
    ))
 
 (defun dump-state (file)
