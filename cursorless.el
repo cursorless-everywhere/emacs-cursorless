@@ -14,8 +14,18 @@
 (update-overlays '())
 
 (defvar serial-number 0)
+(defvar cursorless-state '())
 
-;; TODO: serialize editor state to file, at the moment:
+(defun line-and-column (pos)
+  ;; Note that (current-column) is wrong, we want # of characters since start of
+  ;; line, NOT the logical position. (eg. tab counts as 1 char).
+  ;; cursorless line numbers are 1-indexed. not sure about column numbers.
+  (vector (line-number-at-pos pos t)
+          (save-excursion
+            (goto-char pos)
+            (- pos (line-beginning-position)))))
+
+;; Serialize editor state to file, at the moment:
 ;; - a serial number
 ;; - current file path
 ;; - top & bottom visible lines
@@ -25,11 +35,11 @@
 (defun get-state ()
   ;; produces something that can be passed to json-serialize
   (list
-   'serial-number serial-number
-   'buffer-file-name (buffer-file-name)
+   'serialNumber serial-number
+   'bufferFileName (or (buffer-file-name) :null)
    ;; top & bottom visible lines
-   'line-range  (vector (line-number-at-pos (window-start))
-                        (line-number-at-pos (- (window-end) 1)))
+   'visibleLineRange (vector (line-number-at-pos (window-start))
+                             (line-number-at-pos (- (window-end) 1)))
    ;; where the cursor is. cursorless wants line/column, not offset.
    'cursor (line-and-column (point))   ; point/cursor position
    ;; TODO: also, the mark if there's a selection (ie. if transient mark is on)
@@ -42,18 +52,19 @@
      (json-insert state)
      (json-pretty-print-buffer))))
 
-(dump-state "~/cursorless/state")
+(defun cursorless-update ()
+  ;; TODO: maybe figure out how to avoid dumping state if it didn't change?
+  ;; but when will that happen?
+  (setq cursorless-update-timer nil)
+  (setq serial-number (+ 1 serial-number))
+  (dump-state "~/cursorless/state"))
 
-(defun line-and-column (pos)
-  ;; (current-column) is WRONG, we want # of characters since start of line, NOT
-  ;; the logical position. (eg. tab counts as 1 char).
+(defvar cursorless-update-timer nil)
 
-  ;; cursorless line numbers are 1-indexed. not sure about column numbers.
-  (vector (line-number-at-pos pos t)
-          (save-excursion
-            (goto-char pos)
-            (- pos (line-beginning-position)))))
+(defun cursorless-update-callback ()
+  (unless cursorless-update-timer
+    (setq cursorless-update-timer
+          (run-with-idle-timer 0 nil 'cursorless-update))))
 
-(defun lac ()
-  (interactive)
-  (message "%s" (line-and-column (point))))
+(add-hook 'post-command-hook 'cursorless-update-callback)
+(remove-hook 'post-command-hook 'cursorless-update-callback)
