@@ -26,15 +26,15 @@
   ;; in this case, a plist
   (list
    :serialNumber serial-number
-   :bufferFileName (or (buffer-file-name) :null)
-   ;; top & bottom visible lines
-   :visibleLineRange (vector (line-number-at-pos (window-start))
-                             (line-number-at-pos (- (window-end) 1)))
-   ;; where the cursors are. in emacs, only one cursor, so a singleton vector. note that cursorless wants line/column, not offset.
-   :cursors (vector
-             ;; TODO: if transient-mark-mode is enabled, represent the whole a
-             ;; selection.
-             (line-and-column (point)))
+   :activeEditor
+   (list
+    :path (or (buffer-file-name) :null)
+    :firstVisibleLine (line-number-at-pos (window-start))
+    :lastVisibleLine  (line-number-at-pos (- (window-end) 1))
+    ;; where the cursors are. in emacs, only one cursor, so a singleton vector.
+    ;; note that cursorless wants line/column, not offset.
+    ;; TODO: if transient-mark-mode is enabled, represent the whole selection.
+    :cursors (vector (line-and-column (point))))
    ))
 
 
@@ -150,7 +150,6 @@
 (defvar hats-buffer nil)
 
 (defun hats-change-callback (event)
-  (message "Event %S" event)
   (when hats-buffer
     (with-current-buffer hats-buffer
       (update-overlays (read-hats "~/.vscode-hats.json"))
