@@ -1,0 +1,12 @@
+- maybe make "fake lines" above real lines
+  and then put characters on them in a custom face
+  to imitate hats
+
+  if we can adjust the height we could make it only as tall
+  as it needs to be
+
+- or, svg-of-character
+  but alignment and styling are hard then
+
+- or, hack emacs C code to allow overlaying svgs on characters
+  not clear how practical this is.
