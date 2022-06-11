@@ -1,17 +1,5 @@
 ; a very simple test test test test test
-
-;; what is hats? a list ((position color) (position color) ...)
-;; TODO: interpret these colors using a customizable list
-(defun update-overlays (hats)
-  (remove-overlays nil nil 'cursorless t)
-  (dolist (h hats)
-    (cl-destructuring-bind (position color) h ; need cl-macs.el
-      (let ((o (make-overlay position (+ 1 position) (current-buffer) t nil)))
-        (overlay-put o 'cursorless t)
-        (overlay-put o 'face `((:background ,color)))))))
-
-(update-overlays '((1 "coral") (3 "lightblue")))
-(update-overlays '())
+(require 'cl-macs)
 
 (defvar serial-number 0)
 (defvar cursorless-state '())
@@ -20,10 +8,11 @@
   ;; Note that (current-column) is wrong, we want # of characters since start of
   ;; line, NOT the logical position. (eg. tab counts as 1 char).
   ;; cursorless line numbers are 1-indexed. not sure about column numbers.
-  (vector (line-number-at-pos pos t)
-          (save-excursion
-            (goto-char pos)
-            (- pos (line-beginning-position)))))
+  (list
+   'line (line-number-at-pos pos t)
+   'column (save-excursion
+             (goto-char pos)
+             (- pos (line-beginning-position)))))
 
 ;; Serialize editor state to file, at the moment:
 ;; - a serial number
@@ -34,37 +23,124 @@
 ;; - where the cursors/selections are
 (defun get-state ()
   ;; produces something that can be passed to json-serialize
+  ;; in this case, a plist
   (list
-   'serialNumber serial-number
-   'bufferFileName (or (buffer-file-name) :null)
+   :serialNumber serial-number
+   :bufferFileName (or (buffer-file-name) :null)
    ;; top & bottom visible lines
-   'visibleLineRange (vector (line-number-at-pos (window-start))
+   :visibleLineRange (vector (line-number-at-pos (window-start))
                              (line-number-at-pos (- (window-end) 1)))
-   ;; where the cursor is. cursorless wants line/column, not offset.
-   'cursor (line-and-column (point))   ; point/cursor position
-   ;; TODO: also, the mark if there's a selection (ie. if transient mark is on)
+   ;; where the cursors are. in emacs, only one cursor, so a singleton vector. note that cursorless wants line/column, not offset.
+   :cursors (vector
+             ;; TODO: if transient-mark-mode is enabled, represent the whole a
+             ;; selection.
+             (line-and-column (point)))
    ))
 
+
+;; DUMPING OUR STATE TO CURSORLESS ;;
 (defun dump-state (file)
   (interactive "F")
   (let ((state (get-state)))
    (with-temp-file file
      (json-insert state)
-     (json-pretty-print-buffer))))
+     (json-pretty-print-buffer) ;; optional, for human consumption
+     )))
 
-(defun cursorless-update ()
+(defun cursorless-send-state ()
   ;; TODO: maybe figure out how to avoid dumping state if it didn't change?
   ;; but when will that happen?
-  (setq cursorless-update-timer nil)
+  (setq cursorless-send-state-timer nil)
   (setq serial-number (+ 1 serial-number))
   (dump-state "~/cursorless/state"))
 
-(defvar cursorless-update-timer nil)
+(defvar cursorless-send-state-timer nil)
 
-(defun cursorless-update-callback ()
-  (unless cursorless-update-timer
-    (setq cursorless-update-timer
-          (run-with-idle-timer 0 nil 'cursorless-update))))
+;;; Scrolling seems janky, but it doesn't look like we're causing it?
+;;; that is, removing this hook doesn't seem to fix the issue.
+(defun cursorless-send-state-callback ()
+  (unless cursorless-send-state-timer
+    (setq cursorless-send-state-timer
+          (run-with-idle-timer 0.1 nil 'cursorless-send-state))))
 
-(add-hook 'post-command-hook 'cursorless-update-callback)
-(remove-hook 'post-command-hook 'cursorless-update-callback)
+(add-hook 'post-command-hook 'cursorless-send-state-callback)
+;(remove-hook 'post-command-hook 'cursorless-send-state-callback)
+
+
+;; DRAWING & READING HATS FROM CURSORLESS ;;
+(defun clear-overlays ()
+  (remove-overlays nil nil 'cursorless t))
+
+;; TODO: defcustom
+(defparam cursorless-color-alist
+  '((default . "lightgrey")
+    (blue . "lightblue")
+    (red . "pink")
+    (pink . "light goldenrod")
+    (green . "light green")
+    ))
+
+;; what is hats? a list ((color line offset) (color line offset) ...)
+(defun update-overlays (hats)
+  (clear-overlays)
+  (dolist (h hats)
+    (cl-destructuring-bind (color line offset) h
+      (let* ((position (line-and-column-to-offset line offset))
+             (o (make-overlay position (+ 1 position) (current-buffer) t nil)))
+        (overlay-put o 'cursorless t)
+        (setq color (or (cdr (assoc color cursorless-color-alist)) (symbol-name color)))
+
+        ;; TODO: if we have multiple working strategies (eg foreground+underline
+        ;; vs background-color), we can use these as "shapes/styles"
+
+        ;; change background color
+        (overlay-put o 'face `((:background ,color)))
+
+        ;; change foreground color & underline
+        ;(overlay-put o 'face `((:foreground ,color) (:underline ,color)))
+
+        ;(overlay-put o 'face `((:box (:line-width 2 :color ,color))))
+        ;(overlay-put o 'face `((:overline ,color)))
+        ))))
+
+(defun line-and-column-to-offset (line column)
+  (save-mark-and-excursion
+    (save-restriction
+      (widen)
+      (goto-char (point-min))
+      ;; It looks like we're NOT off-by-one, which confuses me a bit.
+      (forward-line line)
+      ;; TODO: check we haven't gone over the end of the line
+      (forward-char column)
+      (point))))
+
+;(update-overlays '((1 "coral") (3 "lightblue")))
+;(update-overlays '())
+
+(defun read-hats-raw (file)
+  (with-temp-buffer
+    (insert-file-contents-literally file)
+    (json-parse-buffer :object-type 'alist)))
+
+(defun read-hats (file)
+  (let* ((hats (read-hats-raw file))
+         (file-hats (cdar hats)))
+    ;; hats-json is an alist of the form ((file . file-hats) ...)
+    ;; file-hats are of the form: ((color . [hat ...]) ...)
+    ;; hats are of the form: ((start (line . n) (character . n)) (end (line . n) (character . c)))
+    ;;
+    ;; for now we assume there's only one file, so we just grab the cdar
+    ;; TODO: this ought to be much simpler.
+    (cl-loop for (color . hats) in file-hats
+             nconc (cl-loop for hat across hats
+                            collect (let ((x (alist-get 'start hat)))
+                                      (list color (alist-get 'line x) (alist-get 'character x)))))))
+
+(defun show-hats ()
+  (interactive)
+  (update-overlays (read-hats "~/.vscode-hats.json")))
+
+(defun hide-hats () (interactive) (update-overlays '()))
+
+;(setq raw-hats (read-hats-raw "~/.vscode-hats.json"))
+(setq hats (read-hats "~/.vscode-hats.json"))
