@@ -136,11 +136,25 @@
                             collect (let ((x (alist-get 'start hat)))
                                       (list color (alist-get 'line x) (alist-get 'character x)))))))
 
+(defun hide-hats ()
+  (interactive)
+  (with-current-buffer hats-buffer
+   (update-overlays '()))
+  (setq hats-buffer nil))
+
 (defun show-hats ()
   (interactive)
+  (setq hats-buffer (current-buffer))
   (update-overlays (read-hats "~/.vscode-hats.json")))
 
-(defun hide-hats () (interactive) (update-overlays '()))
+(defvar hats-buffer nil)
 
-;(setq raw-hats (read-hats-raw "~/.vscode-hats.json"))
-(setq hats (read-hats "~/.vscode-hats.json"))
+(defun hats-change-callback (event)
+  (message "Event %S" event)
+  (when hats-buffer
+    (with-current-buffer hats-buffer
+      (update-overlays (read-hats "~/.vscode-hats.json"))
+      (message "Updated hats in %s" hats-buffer))))
+
+(defvar vscode-hats-watcher
+  (file-notify-add-watch "~/.vscode-hats.json" '(change) 'hats-change-callback))
