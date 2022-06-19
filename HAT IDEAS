@@ -10,3 +10,24 @@
 
 - or, hack emacs C code to allow overlaying svgs on characters
   not clear how practical this is.
+
+- OVERLAYS BEFORE EACH LINE
+
+(defun put-before-line ()
+  (interactive)
+  (clear-overlays)
+  (let* ((pos (save-excursion (beginning-of-line) (point)))
+         (overlay (make-overlay pos pos))
+         (face '(;(:height 120)
+                 (:background "lightgrey")))
+         (text (copy-sequence "x\n"))
+         (image (let* ((w (window-font-width))
+                       (svg (svg-create w w)))
+                  (svg-circle svg 0 0 w)
+                  (svg-image svg :scale 1))))
+    (message "%s" image)
+    (put-text-property 0 (length text) 'face face text)
+    (put-text-property 0 (length text) 'line-height t text)
+    (put-text-property 0 1 'display image text)
+    (overlay-put overlay 'cursorless t)
+    (overlay-put overlay 'before-string text)))
