@@ -4,6 +4,9 @@
 (defvar serial-number 0)
 (defvar cursorless-state '())
 
+(defconst cursorless-editor-state-file "~/.cursorless/editor-state.json")
+(defconst cursorless-hats-file "~/.cursorless/vscode-hats.json")
+
 (defun line-and-column (pos)
   ;; Note that (current-column) is wrong, we want # of characters since start of
   ;; line, NOT the logical position. (eg. tab counts as 1 char).
@@ -52,7 +55,7 @@
   ;; but when will that happen?
   (setq cursorless-send-state-timer nil)
   (setq serial-number (+ 1 serial-number))
-  (dump-state "~/cursorless/state"))
+  (dump-state cursorless-editor-state-file))
 
 (defvar cursorless-send-state-timer nil)
 
@@ -85,10 +88,28 @@
   (clear-overlays)
   (dolist (h hats)
     (cl-destructuring-bind (color line offset) h
-      (let* ((position (line-and-column-to-offset line offset))
-             (o (make-overlay position (+ 1 position) (current-buffer) t nil)))
+      (let* ((color (or (cdr (assoc color cursorless-color-alist)) (symbol-name color)))
+             (position (line-and-column-to-offset line offset))
+             (o (make-overlay position (+ 1 position) (current-buffer) t nil))
+             (o2 (make-overlay position position (current-buffer)))
+             (string (copy-sequence "x"))
+             (svg (let* ((existing-face (get-text-property (point) 'face))
+                         (svg (svg-create (window-font-width) (window-font-height))))
+                    (ignore svg "x"
+                              ;; :font-family (plist-get existing-face :font-family )
+                              ;; :font-weight (plist-get existing-face :font-weight )
+                              ;; :font-size (plist-get existing-face :font-size )
+                              :fill "black" :x 0 :y  0)
+                    (svg-circle svg 0 0 15 :fill "black" :stroke "red")
+                    svg))
+             )
         (overlay-put o 'cursorless t)
-        (setq color (or (cdr (assoc color cursorless-color-alist)) (symbol-name color)))
+
+        (overlay-put o2 'cursorless t)
+        (put-text-property 0 (length string) 'display (svg-image svg) string)
+        (overlay-put o2 'before-string string)
+
+        ;; (overlay-put o2 'display (svg-image svg))
 
         ;; TODO: if we have multiple working strategies (eg foreground+underline
         ;; vs background-color), we can use these as "shapes/styles"
@@ -145,15 +166,15 @@
 (defun show-hats ()
   (interactive)
   (setq hats-buffer (current-buffer))
-  (update-overlays (read-hats "~/.vscode-hats.json")))
+  (update-overlays (read-hats cursorless-hats-file)))
 
 (defvar hats-buffer nil)
 
 (defun hats-change-callback (event)
   (when hats-buffer
     (with-current-buffer hats-buffer
-      (update-overlays (read-hats "~/.vscode-hats.json"))
+      (update-overlays (read-hats cursorless-hats-file))
       (message "Updated hats in %s" hats-buffer))))
 
 (defvar vscode-hats-watcher
-  (file-notify-add-watch "~/.vscode-hats.json" '(change) 'hats-change-callback))
+  (file-notify-add-watch cursorless-hats-file '(change) 'hats-change-callback))
