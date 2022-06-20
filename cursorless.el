@@ -133,9 +133,7 @@
                                              (- (point) before))))))
                           (puthash line (svg-create (* w columns) h)
                                    cursorless-hat-images)))))
-          ;; TODO: use color!
-          (svg-circle svg (+ (* w column) (/ w 2.0)) ypos r
-                      :fill color))))
+          (svg-circle svg (+ (* w column) (/ w 2.0)) ypos r :fill color))))
     cursorless-hat-images))
 
 ;; what is hats? a list ((color line offset) (color line offset) ...)
