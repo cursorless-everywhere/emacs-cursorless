@@ -1,17 +1,16 @@
-- maybe make "fake lines" above real lines
-  and then put characters on them in a custom face
-  to imitate hats
-
-  if we can adjust the height we could make it only as tall
-  as it needs to be
-
-- or, svg-of-character
+- svg-of-character
   but alignment and styling are hard then
 
-- or, hack emacs C code to allow overlaying svgs on characters
+- hack emacs C code to allow overlaying svgs on characters
   not clear how practical this is.
 
 - OVERLAYS BEFORE EACH LINE
+  see also: https://www.gnu.org/software/emacs/manual/html_node/elisp/Line-Height.html
+  https://www.gnu.org/software/emacs/manual/html_node/elisp/Special-Properties.html
+  see line-height, line-spacing, line-prefix
+
+- negative width spaces?
+  https://www.gnu.org/software/emacs/manual/html_node/elisp/Specified-Space.html
 
 (defun put-before-line ()
   (interactive)
