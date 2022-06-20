@@ -71,35 +71,87 @@
 
 
 ;; DRAWING & READING HATS FROM CURSORLESS ;;
-(defun clear-overlays ()
+(defun cursorless-clear-overlays ()
+  (interactive)
   (remove-overlays nil nil 'cursorless t))
 
 ;; TODO: defcustom
 (defparam cursorless-color-alist
-  '((default . "lightgrey")
-    (blue . "lightblue")
-    (red . "pink")
-    (pink . "light goldenrod")
-    (green . "light green")
+  '((default . "#999")
+    (blue . "#04f")
+    (red . "dark red")
+    (pink . "coral")
+    (green . "#0b0")
     ))
 
+(defparam cursorless-color-alist ; dark theme
+  '((default . "#999")
+    (blue . "#0af")
+    (red . "#f00")
+    (pink . "#fa8072")
+    (green . "#0a0")
+    ))
+
+(defun cursorless-update-overlays (hats)
+  (cursorless-clear-overlays)
+  (maphash 'cursorless-add-overlay-to-line (cursorless-hat-images hats)))
+
+(defun cursorless-add-overlay-to-line (line svg)
+  (save-excursion
+    (goto-char (point-min))
+    (forward-line line)
+    (let* ((overlay (make-overlay (point) (point)))
+           (text (copy-sequence "x\n"))
+           (image (svg-image svg :scale 1)))
+      (put-text-property 0 (length text) 'line-height t text)
+      (put-text-property 0 1 'display image text)
+      (overlay-put overlay 'cursorless t)
+      (overlay-put overlay 'before-string text))))
+
+(defvar cursorless-hat-images (make-hash-table))
+(defun cursorless-hat-images (hats)
+  (clrhash cursorless-hat-images)
+  (let* ((w (window-font-width))
+         (dia (* w 0.5))
+         (h (* w 1))
+         (h (* 0.6 (window-font-height)))
+         (r (/ dia 2))
+         (ypos (- h (* r 2))))
+    ;; hats is a list ((color line offset) (color line offset) ...)
+    (dolist (hat hats)
+      (cl-destructuring-bind (color line column) hat
+        (let* ((color (or (cdr (assoc color cursorless-color-alist))
+                          (symbol-name color)))
+               (svg (or (gethash line cursorless-hat-images)
+                        (let ((columns (save-excursion
+                                         (save-restriction
+                                           (widen)
+                                           (goto-char (point-min))
+                                           (forward-line line)
+                                           (let ((before (point)))
+                                             (end-of-line)
+                                             (- (point) before))))))
+                          (puthash line (svg-create (* w columns) h)
+                                   cursorless-hat-images)))))
+          ;; TODO: use color!
+          (svg-circle svg (+ (* w column) (/ w 2.0)) ypos r
+                      :fill color))))
+    cursorless-hat-images))
+
 ;; what is hats? a list ((color line offset) (color line offset) ...)
-(defun update-overlays (hats)
-  (clear-overlays)
+(defun cursorless-update-overlays-obsolete (hats)
+  (cursorless-clear-overlays)
   (dolist (h hats)
     (cl-destructuring-bind (color line offset) h
-      (let* ((color (or (cdr (assoc color cursorless-color-alist)) (symbol-name color)))
+      (let* ((color (or (cdr (assoc color cursorless-color-alist))
+                        (symbol-name color)))
              (position (line-and-column-to-offset line offset))
              (o (make-overlay position (+ 1 position) (current-buffer) t nil))
              (o2 (make-overlay position position (current-buffer)))
              (string (copy-sequence "x"))
              (svg (let* ((existing-face (get-text-property (point) 'face))
                          (svg (svg-create (window-font-width) (window-font-height))))
-                    (ignore svg "x"
-                              ;; :font-family (plist-get existing-face :font-family )
-                              ;; :font-weight (plist-get existing-face :font-weight )
-                              ;; :font-size (plist-get existing-face :font-size )
-                              :fill "black" :x 0 :y  0)
+                    (ignore svg "x" :fill "black" :x 0 :y  0)
                     (svg-circle svg 0 0 15 :fill "black" :stroke "red")
                     svg))
              )
@@ -135,9 +187,6 @@
       (forward-char column)
       (point))))
 
-;(update-overlays '((1 "coral") (3 "lightblue")))
-;(update-overlays '())
-
 (defun read-hats-raw (file)
   (with-temp-buffer
     (insert-file-contents-literally file)
@@ -160,20 +209,20 @@
 (defun hide-hats ()
   (interactive)
   (with-current-buffer hats-buffer
-   (update-overlays '()))
+   (cursorless-clear-overlays))
   (setq hats-buffer nil))
 
 (defun show-hats ()
   (interactive)
   (setq hats-buffer (current-buffer))
-  (update-overlays (read-hats cursorless-hats-file)))
+  (cursorless-update-overlays (read-hats cursorless-hats-file)))
 
 (defvar hats-buffer nil)
 
 (defun hats-change-callback (event)
   (when hats-buffer
     (with-current-buffer hats-buffer
-      (update-overlays (read-hats cursorless-hats-file))
+      (cursorless-update-overlays (read-hats cursorless-hats-file))
       (message "Updated hats in %s" hats-buffer))))
 
 (defvar vscode-hats-watcher
