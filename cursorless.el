@@ -9,6 +9,12 @@
 (defconst cursorless-hats-file
   (concat cursorless-directory "vscode-hats.json"))
 
+(defmacro measure-time (&rest body)
+  "Measure the time it takes to evaluate BODY."
+  `(let ((time (current-time)))
+     (prog1 (progn ,@body)
+       (message "%.06f" (float-time (time-since time))))))
+
 (defun line-and-column (pos)
   ;; Note that (current-column) is wrong, we want # of characters since start of
   ;; line, NOT the logical position. (eg. tab counts as 1 char).
@@ -46,11 +52,11 @@
 
 ;; DUMPING OUR STATE TO CURSORLESS ;;
 (make-variable-buffer-local 'cursorless-temporary-file)
-;; maybe this should bepermanent-local? see 'make-variable-buffer-local
+;; TODO: should be permanent-local to survive major mode changes,
+;; see 'make-variable-buffer-local
 
 (defun cursorless-temporary-file-path ()
   ;; try to look at buffer-local variable and make one if not existent
-  ;; TODO: treat minibuffer specially
   (if (and (local-variable-p 'cursorless-temporary-file)
            ;; if file has been deleted we probably want to make a new one.
            (file-exists-p cursorless-temporary-file))
@@ -64,6 +70,7 @@
 
 (defun cursorless-dump-state ()
   (interactive)
+  ;; TODO: only write this if the buffer contents have changed since last write!
   (write-region nil nil (cursorless-temporary-file-path) nil 'ignore-message)
   (let ((state (get-state))
         (buffer (current-buffer)))
@@ -76,18 +83,15 @@
   ;; TODO: maybe figure out how to avoid dumping state if it didn't change?
   ;; but when will that happen?
   (unless (minibufferp) ;; don't do anything when in minibuffer
-    (message "cursorless sending state")
-    ;(setq cursorless-send-state-timer nil)
-    (setq cursorless-serial-number (+ 1 cursorless-serial-number))
-    (cursorless-dump-state)))
+    (progn ;measure-time
+     (setq cursorless-serial-number (+ 1 cursorless-serial-number))
+     (cursorless-dump-state))))
 
 (defvar cursorless-enabled t)
-(defvar cursorless-send-state-timer
-  (let ((timer (timer-create)))
-    (timer-set-function  timer 'cursorless-send-state)
-    ;; idle time 1ms, gotta go fast
-    (timer-set-idle-time timer 0.001 nil) ; don't repeat automatically
-    timer))
+(defvar cursorless-send-state-timer (timer-create))
+(timer-set-function cursorless-send-state-timer 'cursorless-send-state)
+;; idle time 1ms, gotta go fast. don't repeat automatically.
+(timer-set-idle-time cursorless-send-state-timer 0.001 nil)
 
 (defun cursorless-enable ()
   (interactive)
