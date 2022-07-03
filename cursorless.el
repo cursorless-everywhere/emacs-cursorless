@@ -1,11 +1,13 @@
 ; a very simple test test test test test
 (require 'cl-macs)
 
-(defvar serial-number 0)
-(defvar cursorless-state '())
+(defvar cursorless-serial-number 0)
 
-(defconst cursorless-editor-state-file "~/.cursorless/editor-state.json")
-(defconst cursorless-hats-file "~/.cursorless/vscode-hats.json")
+(defconst cursorless-directory "~/.cursorless/")
+(defconst cursorless-editor-state-file
+  (concat cursorless-directory "editor-state.json"))
+(defconst cursorless-hats-file
+  (concat cursorless-directory "vscode-hats.json"))
 
 (defun line-and-column (pos)
   ;; Note that (current-column) is wrong, we want # of characters since start of
@@ -28,10 +30,11 @@
   ;; produces something that can be passed to json-serialize
   ;; in this case, a plist
   (list
-   :serialNumber serial-number
+   :serialNumber cursorless-serial-number
    :activeEditor
    (list
     :path (or (buffer-file-name) :null)
+    :temporaryFilePath (cursorless-temporary-file-path)
     :firstVisibleLine (line-number-at-pos (window-start))
     :lastVisibleLine  (line-number-at-pos (- (window-end) 1))
     ;; where the cursors are. in emacs, only one cursor, so a singleton vector.
@@ -42,29 +45,72 @@
 
 
 ;; DUMPING OUR STATE TO CURSORLESS ;;
-(defun dump-state (file)
-  (interactive "F")
-  (let ((state (get-state)))
-   (with-temp-file file
-     (json-insert state)
-     (json-pretty-print-buffer) ;; optional, for human consumption
-     )))
+(make-variable-buffer-local 'cursorless-temporary-file)
+;; maybe this should bepermanent-local? see 'make-variable-buffer-local
+
+(defun cursorless-temporary-file-path ()
+  ;; try to look at buffer-local variable and make one if not existent
+  ;; TODO: treat minibuffer specially
+  (if (and (local-variable-p 'cursorless-temporary-file)
+           ;; if file has been deleted we probably want to make a new one.
+           (file-exists-p cursorless-temporary-file))
+      cursorless-temporary-file
+    (let* ((file-name (buffer-file-name))
+           (extension (and file-name (concat "." (file-name-extension file-name))))
+           (temporary-file-directory (concat temporary-file-directory "cursorless.el"))
+           (prefix (replace-regexp-in-string "[*/\\\\]" "_" (buffer-name))))
+      (make-directory temporary-file-directory t)
+      (setq cursorless-temporary-file (make-temp-file prefix nil extension)))))
+
+(defun cursorless-dump-state ()
+  (interactive)
+  (write-region nil nil (cursorless-temporary-file-path) nil 'ignore-message)
+  (let ((state (get-state))
+        (buffer (current-buffer)))
+    (with-temp-file cursorless-editor-state-file
+      (json-insert state)
+      (json-pretty-print-buffer) ;; optional, for human consumption
+      )))
 
 (defun cursorless-send-state ()
   ;; TODO: maybe figure out how to avoid dumping state if it didn't change?
   ;; but when will that happen?
-  (setq cursorless-send-state-timer nil)
-  (setq serial-number (+ 1 serial-number))
-  (dump-state cursorless-editor-state-file))
+  (unless (minibufferp) ;; don't do anything when in minibuffer
+    (message "cursorless sending state")
+    ;(setq cursorless-send-state-timer nil)
+    (setq cursorless-serial-number (+ 1 cursorless-serial-number))
+    (cursorless-dump-state)))
 
-(defvar cursorless-send-state-timer nil)
+(defvar cursorless-enabled t)
+(defvar cursorless-send-state-timer
+  (let ((timer (timer-create)))
+    (timer-set-function  timer 'cursorless-send-state)
+    ;; idle time 1ms, gotta go fast
+    (timer-set-idle-time timer 0.001 nil) ; don't repeat automatically
+    timer))
+
+(defun cursorless-enable ()
+  (interactive)
+  (setq cursorless-enabled t)
+  (cursorless-send-state))
+
+(defun cursorless-disable ()
+  (interactive)
+  (setq cursorless-enabled nil)
+  (cancel-timer cursorless-send-state-timer))
 
 ;;; Scrolling seems janky, but it doesn't look like we're causing it?
 ;;; that is, removing this hook doesn't seem to fix the issue.
 (defun cursorless-send-state-callback ()
-  (unless cursorless-send-state-timer
-    (setq cursorless-send-state-timer
-          (run-with-idle-timer 0.1 nil 'cursorless-send-state))))
+  (when cursorless-enabled
+    (if cursorless-send-state-timer
+        (timer-activate-when-idle cursorless-send-state-timer t)
+      (error "no idle timer")))
+  ;; (when (and cursorless-enabled
+  ;;            (null cursorless-send-state-timer))
+  ;;   (setq cursorless-send-state-timer
+  ;;         (run-with-idle-timer 0.1 nil 'cursorless-send-state)))
+  )
 
 (add-hook 'post-command-hook 'cursorless-send-state-callback)
 ;(remove-hook 'post-command-hook 'cursorless-send-state-callback)
@@ -112,11 +158,10 @@
 (defun cursorless-hat-images (hats)
   (clrhash cursorless-hat-images)
   (let* ((w (window-font-width))
-         (dia (* w 0.5))
-         (h (* w 1))
-         (h (* 0.6 (window-font-height)))
-         (r (/ dia 2))
-         (ypos (- h (* r 2))))
+         (dia (* w 0.5)) (h (* 0.6 (window-font-height))) (r (/ dia 2)) (ypos (- h (* r 2)))
+         ;; (dia (* w .45)) (h (* w 0.8)) (r (/ dia 2)) (ypos (- h (* r 1.5)))
+         (dia (* w .44)) (r (* 0.5 dia)) (h (+ 2 (round dia))) (ypos (- h (* r 1) 1))
+         )
     ;; hats is a list ((color line offset) (color line offset) ...)
     (dolist (hat hats)
       (cl-destructuring-bind (color line column) hat
@@ -221,7 +266,8 @@
   (when hats-buffer
     (with-current-buffer hats-buffer
       (cursorless-update-overlays (read-hats cursorless-hats-file))
-      (message "Updated hats in %s" hats-buffer))))
+      ;; (message "Updated hats in %s" hats-buffer)
+      )))
 
 (defvar vscode-hats-watcher
   (file-notify-add-watch cursorless-hats-file '(change) 'hats-change-callback))
