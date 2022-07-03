@@ -82,7 +82,8 @@
 (defun cursorless-dump-state ()
   (interactive)
   ;; TODO: only write if buffer contents have changed since last write!
-  (write-region nil nil (cursorless-temporary-file-path) nil 'ignore-message)
+  (let ((file-name-handler-alist '())) ;; avoid compression etc.
+    (write-region nil nil (cursorless-temporary-file-path) nil 'ignore-message))
   (let ((state (get-state))
         (buffer (current-buffer)))
     (with-temp-file cursorless-editor-state-file
@@ -119,15 +120,16 @@
            ;; if file has been deleted we probably want to make a new one.
            (file-exists-p cursorless-temporary-file))
       cursorless-temporary-file
-    (let* ((file-name (buffer-file-name))
-           (extension (and file-name
-                           (concat "." (file-name-extension file-name))))
-           (temporary-file-directory ;; dynamic scope!
-            (concat temporary-file-directory "cursorless.el"))
-           (prefix (replace-regexp-in-string "[*/\\\\]" "_" (buffer-name))))
-      (make-directory temporary-file-directory t)
+    (let* ((extension (if (null (buffer-file-name)) ""
+                        (concat "." (file-name-extension (buffer-file-name)))))
+           (dirname (concat (file-name-as-directory temporary-file-directory)
+                            "cursorless.el/"))
+           (name (replace-regexp-in-string "[*/\\\\]" "_" (buffer-name)))
+           (prefix (concat dirname name "-")))
+      (make-directory dirname t)
+      ;; make-temp-file-internal because it doesn't try to do magic with file names
       (setq cursorless-temporary-file
-            (make-temp-file (concat prefix "-") nil extension)))))
+            (make-temp-file-internal prefix nil extension nil)))))
 
 
 ;; READING & DRAWING HATS FROM CURSORLESS ;;
@@ -163,6 +165,9 @@
   (with-temp-buffer
     (insert-file-contents-literally cursorless-hats-file)
     (json-parse-buffer :object-type 'alist)))
+
+;;; NB. "A loop that scans the buffer forwards, creating overlays, can run faster if you do (overlay-recenter (point-max)) first."
+;;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Managing-Overlays.html
 
 
 ;;; ---------- OLD VERSION ----------
