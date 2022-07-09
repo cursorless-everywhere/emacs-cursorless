@@ -1,0 +1,14 @@
+places I'm spending time:
+
+- svg-image
+- calculating # of columns in line? (tried to optimize, CHECK)
+- updating all lines instead of just on-screen ones
+- creating & destroying overlays (HOW MUCH?)
+
+to achieve better perf:
+
+- cache & reuse an empty-line svg
+- avoid recalculating stuff by repeated calls to cursorless-line-svg
+- use individual hat images & reuse/avoid duplicates
+  to avoid hitting svg-image
+- reuse overlays on each line, only create/destroy as needed
