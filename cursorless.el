@@ -292,9 +292,6 @@
         do (puthash line (cons hat rest) cursorless-hats))))
   cursorless-hats)
 
-(defun num-columns ()
-  (- (line-end-position) (point)))
-
 (defun cursorless-update-overlays (line-hats)
   (cursorless-clear-overlays)
   ;; for every line, generate an image.
