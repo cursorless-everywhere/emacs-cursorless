@@ -335,37 +335,7 @@
         (put-text-property 0 (length text) 'line-height t text)
         (put-text-property 0 1 'display image text)
         (overlay-put overlay 'cursorless t)
-        (overlay-put overlay 'before-string text)))))
-
-  ;; OLD VERSION
-  ;; (let ((font-width (window-font-width))
-  ;;       (font-height (window-font-height))
-  ;;       (window-start-line (line-number-at-pos (window-start)))
-  ;;       (window-end-line   (line-number-at-pos (window-end))))
-  ;;   (save-excursion
-  ;;     ;(goto-char (window-start))
-  ;;     (goto-char (point-min)) (overlay-recenter (point-max))
-  ;;     (cl-loop
-  ;;      for line = (1- (line-number-at-pos)) then (1+ line)
-  ;;      ;;until (>= (point) (or (window-end) (point-max)))
-  ;;      until (>= (point) (point-max))
-  ;;      ;; THIS IS SLOW :(
-  ;;      for columns = (num-columns)
-  ;;      for overlay = (make-overlay (point) (point))
-  ;;      for text    = (copy-sequence "x\n")
-  ;;      for hats    = (gethash line line-hats '())
-  ;;      ;; when (<= window-start-line line window-end-line)
-  ;;      do
-  ;;      (let ((image (cursorless-line-svg columns
-  ;;                                        (gethash line line-hats '())
-  ;;                                        font-width font-height)))
-  ;;        (put-text-property 0 (length text) 'line-height t text)
-  ;;        (put-text-property 0 1 'display image text)
-  ;;        (overlay-put overlay 'cursorless t)
-  ;;        (overlay-put overlay 'before-string text))
-  ;;      do
-  ;;      (forward-line))))
-  )
+        (overlay-put overlay 'before-string text))))))
 
 (defun cursorless-line-svg (columns hats font-width font-height)
   (let* ((w font-width)
