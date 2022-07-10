@@ -6,7 +6,7 @@
      (prog1 (progn ,@body)
        (message "%30s %3d ms" ',name (round (* 1000 (float-time (time-since time))))))))
 
-(defun line-and-cloumn (pos)
+(defun line-and-column (pos)
   ;; Note that (current-column) is wrong, we want # of characters since start of
   ;; line, NOT the logical position. (eg. tab counts as 1 char).
   ;; cursorless line numbers are 1-indexed. not sure about column numbers.
