@@ -143,7 +143,7 @@
 (defun cursorless-hats-change-callback (&optional event)
   (unless cursorless-hats-update-timer
     (setq cursorless-hats-update-timer
-          (run-with-idle-timer 0.1 nil 'cursorless-hats-update-callback))))
+          (run-with-idle-timer 0.04 nil 'cursorless-hats-update-callback))))
 
 (defvar cursorless-hats-watcher
   (progn
