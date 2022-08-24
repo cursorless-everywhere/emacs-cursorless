@@ -75,7 +75,7 @@
   ;; TODO: maybe figure out how to avoid dumping state if it didn't change?
   ;; but when will that happen?
   (unless (minibufferp) ;; don't do anything when in minibuffer
-    (progn ;measure-time
+    (progn ; measure-time "cursorless send state"
       (setq cursorless-serial-number (+ 1 cursorless-serial-number))
       (cursorless-dump-state))))
 
@@ -148,9 +148,7 @@
      (progn
        (setq cursorless-updating-hats t)
        (setq cursorless-hats-update-timer nil)
-       (when hats-buffer
-         (message "cursorless-hats updating hats buffer")
-         (with-current-buffer hats-buffer (cursorless-update-hats))))
+       (when hats-buffer (with-current-buffer hats-buffer (cursorless-update-hats))))
      (setq cursorless-updating-hats nil))))
 (defun cursorless-hats-change-callback (&optional event)
   (if cursorless-updating-hats
@@ -209,7 +207,6 @@
 ;;
 ;; when hats have shapes, COLORNAME is altered (TODO: how).
 (defun cursorless-update-hats ()
-  (message " ")
   (measure-time "update hats"
     (cursorless-update-overlays
     (measure-time "read/index hats"
