@@ -1,4 +1,7 @@
 (require 'cl-macs)
+(require 'svg)
+(require 'json)
+(require 'filenotify)
 
 (defmacro measure-time (name &rest body)
   "Measure the time it takes to evaluate BODY."
