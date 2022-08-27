@@ -15,11 +15,12 @@
 (defun cursorless-send (cmd)
   (with-current-buffer cursorless-socket-buffer
     (erase-buffer))
-  (let ((p (make-network-process :name "cursorless"
-                                 :family 'local
-                                 :remote "/home/rntz/.cursorless/vscode-socket"
-                                 :buffer buf
-                                 :sentinel 'cursorless-sentinel)))
+  (let ((p (make-network-process
+            :name "cursorless"
+            :family 'local
+            :remote "/home/rntz/.cursorless/vscode-socket"
+            :buffer cursorless-socket-buffer
+            :sentinel 'cursorless-sentinel)))
     (process-send-string p cmd)))
 
 ;; ping, state, stateWithContents, applyPrimaryEditorState (?),
@@ -29,7 +30,7 @@
 ;; cursorless: runs a command then serializes state afterward
 ;;
 ;; what is 'applyPrimaryEditorState'?
-(cursorless-send "{\"command\": \"stateWithContents\"}")
+(cursorless-send "{\"command\": \"ping\"}")
 
 ;; ;; see also
 ;; (accept-process-output p 1) ; semi-blocking interface
