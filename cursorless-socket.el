@@ -6,8 +6,14 @@
     (if (not (and (equal status 'closed)
                   (equal event "connection broken by remote peer\n")))
         (warn "Cursorless: unexpected error on communicating with vscode: %s, %s" status event)
-      ;; TODO: The command finished, process its results. We should probably
-      ;; just propagate the results back across the command server to talon?
+      ;; TODO: The command finished, process its results. We should (a)
+      ;; propagate results back across the command server to talon; (b) apply
+      ;; changes using the "newState" field.
+      ;;
+      ;; To apply changes:
+      ;; - figure out which buffer to update from "path"
+      ;; - diff the "contentsPath" against buffer (or temporary file?) contents & apply updates
+      ;; - update the cursor(s) from "cursors"
       (message "Received %s"
                (with-current-buffer cursorless-socket-buffer
                  (buffer-substring-no-properties (point-min) (point-max)))))))
