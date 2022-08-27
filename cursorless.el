@@ -1,4 +1,7 @@
 (require 'cl-macs)
+(require 'svg)
+(require 'json)
+(require 'filenotify)
 
 (defmacro measure-time (name &rest body)
   "Measure the time it takes to evaluate BODY."
@@ -165,9 +168,9 @@
     (file-notify-add-watch cursorless-hats-file '(change) 'cursorless-hats-change-callback)))
 
 ;; TODO: defcustom
-(defparam cursorless-color-alist
+(defconst cursorless-color-alist
   '((default . "#999") (blue . "#04f") (red . "dark red") (pink . "coral") (green . "#0b0")))
-(defparam cursorless-color-alist ; dark theme
+(defconst cursorless-color-alist ; dark theme
   '((default . "#999") (blue . "#0af") (red . "#f00") (pink . "#fa8072") (green . "#0a0")))
 
 (defun show-hats ()

@@ -17,7 +17,7 @@
     (erase-buffer))
   (let ((p (make-network-process :name "cursorless"
                                  :family 'local
-                                 :remote "/home/rntz/.cursorless/vscode-socket"
+                                 :remote (expand-file-name "~/.cursorless/vscode-socket")
                                  :buffer buf
                                  :sentinel 'cursorless-sentinel)))
     (process-send-string p cmd)))
