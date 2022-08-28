@@ -104,7 +104,7 @@
         (buffer (current-buffer)))
     (with-temp-file cursorless-editor-state-file
       (json-insert state)
-      (json-pretty-print-buffer) ;; for human consumption (optional)
+      ;(json-pretty-print-buffer) ;; for human consumption (optional)
       )))
 
 ;; Serialize editor state to file, at the moment:
