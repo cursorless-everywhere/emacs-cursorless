@@ -14,9 +14,11 @@
       ;; - figure out which buffer to update from "path"
       ;; - diff the "contentsPath" against buffer (or temporary file?) contents & apply updates
       ;; - update the cursor(s) from "cursors"
-      (message "Received %s"
-               (with-current-buffer cursorless-socket-buffer
-                 (buffer-substring-no-properties (point-min) (point-max)))))))
+
+      ;; (message "-- CURSORLESS received: %s"
+      ;;          (with-current-buffer cursorless-socket-buffer
+      ;;            (buffer-substring-no-properties (point-min) (point-max))))
+      )))
 
 (defun cursorless-send (cmd)
   (with-current-buffer cursorless-socket-buffer
@@ -27,6 +29,7 @@
             :remote (expand-file-name "~/.cursorless/vscode-socket")
             :buffer cursorless-socket-buffer
             :sentinel 'cursorless-sentinel)))
+    ;; (message "-- CURSORLESS sending: %s" cmd)
     (process-send-string p cmd)))
 
 ;; ping, state, stateWithContents, applyPrimaryEditorState (?),

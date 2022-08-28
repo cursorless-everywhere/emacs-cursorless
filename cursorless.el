@@ -10,7 +10,7 @@
 ;; or unify them into one.
 (require 'cl-macs)
 (require 'svg)
-(require 'json)
+;(require 'json) ;; FIXME: I shouldn't need this. do I?
 (require 'filenotify)
 
 (defvar cursorless-measure-time t)

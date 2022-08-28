@@ -22,7 +22,10 @@ class UserActions:
 
     def trigger_command_server_command_execution():
         # TODO
-        raise NotImplementedError()
+        actions.user.emacs_command("command-server-trigger")
+
+    # PAYLOAD:
+    # {"command": "cursorless", "cursorlessArgs": "[{\"version\": 1, \"spokenForm\": \"pre vest\", \"action\": \"setSelectionBefore\", \"targets\": [{\"type\": \"primitive\", \"mark\": {\"type\": \"decoratedSymbol\", \"symbolColor\": \"default\", \"character\": \"v\"}}], \"extraArgs\": [], \"usePrePhraseSnapshot\": false}]"}
 
     # run_rpc_command('cursorless.command',
     #                 {'version': 1,
@@ -33,21 +36,23 @@ class UserActions:
     #                  'extraArgs': [],
     #                  'usePrePhraseSnapshot': False})
 
-    def run_rpc_command_and_wait(command_id, arg1 = None, arg2 = None, arg3 = None, arg4 = None, arg5 = None):
-        # TODO: invoke M-x or M-: to run this command in emacs
-        args = [x for x in (arg1, arg2, arg3, arg4, arg5) if x is not NotSet]
-        print(f"run_rpc_command({command_id!r}, {', '.join(map(str, args))})")
-        if command_id == 'cursorless.command':
-            assert len(args) == 1
-            payload = {"command": "cursorless", "cursorlessArgs": json.dumps(args)}
-            actions.key("alt-:")
-            with clip.revert():
-                clip.set_text(json.dumps(payload))
-                actions.sleep("300ms")
-                # FIXME: cursorless-send needs to be synchronous
-                # also I'm not sure this works reliably.
-                actions.insert("(cursorless-send (gui-get-selection 'CLIPBOARD))")
-                actions.key("enter")
-                actions.sleep("300ms")
+    # def run_rpc_command_and_wait(command_id, arg1 = None, arg2 = None, arg3 = None, arg4 = None, arg5 = None):
+    #     # TODO: invoke M-x or M-: to run this command in emacs
+    #     args = [x for x in (arg1, arg2, arg3, arg4, arg5) if x is not NotSet]
+    #     print(f"run_rpc_command({command_id!r}, {', '.join(map(str, args))})")
+    #     if command_id == 'cursorless.command':
+    #         assert len(args) == 1
+    #         payload = {"command": "cursorless", "cursorlessArgs": json.dumps(args)}
+    #         payload = json.dumps(payload)
+    #         actions.user.paste(payload)
+    #         actions.key("alt-:")
+    #         with clip.revert():
+    #             clip.set_text(payload)
+    #             actions.sleep("300ms")
+    #             # FIXME: cursorless-send needs to be synchronous
+    #             # also I'm not sure this works reliably.
+    #             actions.insert("(cursorless-send (gui-get-selection 'CLIPBOARD))")
+    #             actions.key("enter")
+    #             actions.sleep("300ms")
             
             
