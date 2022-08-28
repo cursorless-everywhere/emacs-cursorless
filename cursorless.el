@@ -282,125 +282,19 @@
          (dia (* w 0.5)) (h (* 0.6 font-height)) (r (/ dia 2)) (ypos (- h (* r 2)))
          ;; (dia (* w .45)) (h (* w 0.8)) (r (/ dia 2)) (ypos (- h (* r 1.5)))
          (dia (* w .44)) (r (* 0.5 dia)) (h (+ 2 (round dia))) (ypos (- h (* r 1) 1))
+         (dia (* w .44)) (r (* 0.5 dia)) (h (ceiling dia)) (ypos (- h r))
          ;; if columns = 0, we still want a 1-pixel-wide image, otherwise we get
          ;; a weird 'empty box' image out of emacs.
          (svg (svg-create (max 1 (* w columns)) h)))
     ;; hats is a list of plists with at least the properties :column & :color.
     (dolist (hat hats)
-      (svg-circle svg
-                  (+ (/ w 2.0) (* w (plist-get hat :column)))
-                  ypos
-                  r
-                  :fill (plist-get hat :color)))
+      (let* ((color (plist-get hat :color))
+             (xoffset (* w (plist-get hat :column)))
+             (xcenter (+ xoffset (/ w 2.0))))
+        ;; TODO: squash this to an ellipse to save vertical space.
+        ;(svg-circle svg xcenter ypos r :fill color)
+        (svg-ellipse svg xcenter ypos r (/ (- h 1) 2.0) :fill color)
+        ;(svg-rectangle svg (- xcenter r) 1 dia dia :fill color)
+        ))
     ;; scale 1 because we've already accounted for pixel sizes correctly.
     (svg-image svg :scale 1)))
-
-
-;; ;;; ---------- OLD VERSION ----------
-;; (defun cursorless-update-hats ()
-;;   (message " ")
-;;   (measure-time cursorless-update-hats
-;;     (cursorless-update-overlays (read-hats))))
-
-;; (defun read-hats ()
-;;   (measure-time read-hats
-;;    (let* ((hats (cursorless-read-hats-json))
-;;           (file-hats (cdar hats)))
-;;      ;; hats-json is an alist of the form ((file . file-hats) ...)
-;;      ;; file-hats are of the form: ((color . [hat ...]) ...)
-;;      ;; hats are of the form: ((start (line . n) (character . n)) (end (line . n) (character . c)))
-;;      ;;
-;;      ;; for now we assume there's only one file, so we just grab the cdar
-;;      ;; TODO: this ought to be much simpler.
-;;      (cl-loop for (color . hats) in file-hats
-;;               nconc (cl-loop for hat across hats
-;;                              collect (let ((x (alist-get 'start hat)))
-;;                                        (list color (alist-get 'line x) (alist-get 'character x))))))))
-
-;; (defun cursorless-update-overlays (hats)
-;;   (measure-time cursorless-update-overlays
-;;    (cursorless-clear-overlays)
-;;    (overlay-recenter (point))
-;;    (let ((images (cursorless-hat-images hats)))
-;;      (measure-time cursorless-add-overlays
-;;        (maphash 'cursorless-add-overlay-to-line images)))))
-
-;; (defvar cursorless-hat-svgs (make-hash-table))
-;; (defvar cursorless-hat-images (make-hash-table))
-;; (defun cursorless-hat-images (hats)
-;;   (measure-time cursorless-hat-images
-;;    (clrhash cursorless-hat-svgs)
-;;    (clrhash cursorless-hat-images)
-;;    (let* ((w (window-font-width))
-;;           (dia (* w 0.5)) (h (* 0.6 (window-font-height))) (r (/ dia 2)) (ypos (- h (* r 2)))
-;;           ;; (dia (* w .45)) (h (* w 0.8)) (r (/ dia 2)) (ypos (- h (* r 1.5)))
-;;           (dia (* w .44)) (r (* 0.5 dia)) (h (+ 2 (round dia))) (ypos (- h (* r 1) 1))
-;;           )
-;;      ;; hats is a list ((color line offset) (color line offset) ...)
-;;      (dolist (hat hats)
-;;        (cl-destructuring-bind (color line column) hat
-;;          (let* ((color (or (cdr (assoc color cursorless-color-alist))
-;;                            (symbol-name color)))
-;;                 (svg (or (gethash line cursorless-hat-svgs)
-;;                          (let ((columns (save-excursion
-;;                                           (goto-char (point-min))
-;;                                           (forward-line line)
-;;                                           (- (end-of-line-position) (point)))))
-;;                            (puthash line (svg-create (* w columns) h)
-;;                                     cursorless-hat-svgs)))))
-;;            (svg-circle svg (+ (* w column) (/ w 2.0)) ypos r :fill color))))
-;;      (cl-loop for line being the hash-keys of cursorless-hat-svgs
-;;                        using (hash-values svg)
-;;               do (puthash line (svg-image svg :scale 1) cursorless-hat-images))
-;;      cursorless-hat-images)))
-
-;; (defun cursorless-add-overlay-to-line (line svg)
-;;   (save-excursion
-;;     (goto-char (point-min))
-;;     (forward-line line)
-;;     (let* ((overlay (make-overlay (point) (point)))
-;;            (text (copy-sequence "x\n"))
-;;            (image svg))
-;;       (put-text-property 0 (length text) 'line-height t text)
-;;       (put-text-property 0 1 'display image text)
-;;       (overlay-put overlay 'cursorless t)
-;;       (overlay-put overlay 'before-string text))))
-
-
-;; ;; what is hats? a list ((color line offset) (color line offset) ...)
-;; (defun cursorless-update-overlays-obsolete (hats)
-;;   (cursorless-clear-overlays)
-;;   (dolist (h hats)
-;;     (cl-destructuring-bind (color line offset) h
-;;       (let* ((color (or (cdr (assoc color cursorless-color-alist))
-;;                         (symbol-name color)))
-;;              (position (line-and-column-to-offset line offset))
-;;              (o (make-overlay position (+ 1 position) (current-buffer) t nil))
-;;              (o2 (make-overlay position position (current-buffer)))
-;;              (string (copy-sequence "x"))
-;;              (svg (let* ((existing-face (get-text-property (point) 'face))
-;;                          (svg (svg-create (window-font-width) (window-font-height))))
-;;                     (ignore svg "x" :fill "black" :x 0 :y  0)
-;;                     (svg-circle svg 0 0 15 :fill "black" :stroke "red")
-;;                     svg))
-;;              )
-;;         (overlay-put o 'cursorless t)
-
-;;         (overlay-put o2 'cursorless t)
-;;         (put-text-property 0 (length string) 'display (svg-image svg) string)
-;;         (overlay-put o2 'before-string string)
-
-;;         ;; (overlay-put o2 'display (svg-image svg))
-
-;;         ;; TODO: if we have multiple working strategies (eg foreground+underline
-;;         ;; vs background-color), we can use these as "shapes/styles"
-
-;;         ;; change background color
-;;         (overlay-put o 'face `((:background ,color)))
-
-;;         ;; change foreground color & underline
-;;         ;(overlay-put o 'face `((:foreground ,color) (:underline ,color)))
-
-;;         ;(overlay-put o 'face `((:box (:line-width 2 :color ,color))))
-;;         ;(overlay-put o 'face `((:overline ,color)))
-;;         ))))
