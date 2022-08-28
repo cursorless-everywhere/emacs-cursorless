@@ -20,6 +20,10 @@ class UserActions:
     def command_server_directory() -> str:
         return "emacs-command-server" # unused/unimplemented for now
 
+    def trigger_command_server_command_execution():
+        # TODO
+        raise NotImplementedError()
+
     # run_rpc_command('cursorless.command',
     #                 {'version': 1,
     #                  'spokenForm': 'pre two',

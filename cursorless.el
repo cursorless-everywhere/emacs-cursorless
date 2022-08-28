@@ -1,13 +1,25 @@
+;; This file:
+;; (1) displays/updates hats based on a hats file written by vscode.
+;; (2) writes out emacs' state to files watched by vscode.
+;;
+;; It does not handle:
+;; (3) the cursorless command path, talon <-> emacs <-> vscode.
+;;     for that, see cursorless-socket.el and emacs_command_client.py
+;;
+;; Eventually I should either split (1), (2), (3) into three files
+;; or unify them into one.
 (require 'cl-macs)
 (require 'svg)
 (require 'json)
 (require 'filenotify)
 
+(defvar cursorless-measure-time t)
 (defmacro measure-time (name &rest body)
   "Measure the time it takes to evaluate BODY."
   `(let ((time (current-time)))
      (prog1 (progn ,@body)
-       (message "%30s %3d ms" ',name (round (* 1000 (float-time (time-since time))))))))
+       (when cursorless-measure-time
+        (message "%30s %3d ms" ',name (round (* 1000 (float-time (time-since time)))))))))
 
 (defun line-and-column (pos)
   ;; Note that (current-column) is wrong, we want # of characters since start of
@@ -170,8 +182,8 @@
 ;; TODO: defcustom
 (defconst cursorless-color-alist
   '((default . "#999") (blue . "#04f") (red . "dark red") (pink . "coral") (green . "#0b0")))
-(defconst cursorless-color-alist ; dark theme
-  '((default . "#999") (blue . "#0af") (red . "#f00") (pink . "#fa8072") (green . "#0a0")))
+;; (defconst cursorless-color-alist ; dark theme
+;;   '((default . "#999") (blue . "#0af") (red . "#f00") (pink . "#fa8072") (green . "#0a0")))
 
 (defun show-hats ()
   (interactive)

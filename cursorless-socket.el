@@ -1,4 +1,4 @@
-(setq cursorless-socket-buffer (generate-new-buffer "*cursorless-vscode-socket*"))
+(defvar cursorless-socket-buffer (generate-new-buffer "*cursorless-vscode-socket*"))
 
 (defun cursorless-sentinel (proc event)
   ;(message "cursorless-sentinel: %s(%s) %s" proc (process-status proc) event)
