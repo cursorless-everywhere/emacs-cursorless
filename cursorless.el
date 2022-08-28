@@ -26,7 +26,7 @@
   ;; line, NOT the logical position. (eg. tab counts as 1 char).
   ;; cursorless line numbers are 1-indexed. not sure about column numbers.
   (list
-   'line (line-number-at-pos pos t)
+   'line (1- (line-number-at-pos pos t))
    'column (save-excursion
              (goto-char pos)
              (- pos (line-beginning-position)))))
