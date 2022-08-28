@@ -10,7 +10,7 @@
 ;; or unify them into one.
 (require 'cl-macs)
 (require 'svg)
-;(require 'json) ;; FIXME: I shouldn't need this. do I?
+(require 'json) ;; used for json-pretty-print-buffer, which could be removed
 (require 'filenotify)
 
 (defvar cursorless-measure-time t)
