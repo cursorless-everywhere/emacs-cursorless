@@ -13,7 +13,7 @@
 (require 'json) ;; used for json-pretty-print-buffer, which could be removed
 (require 'filenotify)
 
-(defvar cursorless-measure-time t)
+(defvar cursorless-measure-time nil)
 (defmacro measure-time (name &rest body)
   "Measure the time it takes to evaluate BODY."
   `(let ((time (current-time)))
