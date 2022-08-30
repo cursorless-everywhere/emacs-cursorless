@@ -13,15 +13,16 @@
      (concat command-server-directory-name suffix)
      (temporary-file-directory))))
 
-;; TODO: call when loaded, I think?
 (defun command-server-start ()
   (interactive)
   (make-directory (command-server-directory)))
 
-;; TODO: at shutdown, call command-server-quit.
 (defun command-server-quit ()
   (interactive)
   (delete-directory (command-server-directory) t))
+
+(command-server-start)
+;; TODO: at shutdown, call command-server-quit.
 
 (defun command-server-trigger ()
   "Trigger command execution."

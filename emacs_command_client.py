@@ -2,8 +2,8 @@ import json
 
 from talon import Context, actions, clip
 
-from user.knausj.apps.vscode.command_client import command_client
-NotSet = command_client.NotSet
+# from user.knausj.apps.vscode.command_client import command_client
+# NotSet = command_client.NotSet
 
 ctx = Context()
 
