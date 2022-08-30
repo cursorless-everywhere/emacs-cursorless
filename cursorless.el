@@ -4,7 +4,7 @@
 ;;
 ;; It does not handle:
 ;; (3) the cursorless command path, talon <-> emacs <-> vscode.
-;;     for that, see cursorless-socket.el and emacs_command_client.py
+;;     for that, see emacs-command-client.el and emacs_command_client.py
 ;;
 ;; Eventually I should either split (1), (2), (3) into three files
 ;; or unify them into one.
