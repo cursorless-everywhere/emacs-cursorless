@@ -22,7 +22,8 @@ class UserActions:
 
     def trigger_command_server_command_execution():
         # TODO
-        actions.user.emacs_command("command-server-trigger")
+        # actions.user.emacs_command("command-server-trigger")
+        actions.user.emacs_command("c-tri")
 
     # PAYLOAD:
     # {"command": "cursorless", "cursorlessArgs": "[{\"version\": 1, \"spokenForm\": \"pre vest\", \"action\": \"setSelectionBefore\", \"targets\": [{\"type\": \"primitive\", \"mark\": {\"type\": \"decoratedSymbol\", \"symbolColor\": \"default\", \"character\": \"v\"}}], \"extraArgs\": [], \"usePrePhraseSnapshot\": false}]"}

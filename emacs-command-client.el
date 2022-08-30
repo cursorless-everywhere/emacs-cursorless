@@ -76,21 +76,16 @@
     (if (not (and (equal status 'closed)
                   (equal event "connection broken by remote peer\n")))
         (warn "Cursorless: unexpected error on communicating with vscode: %s, %s" status event)
-      ;; TODO: The command finished, process its results. We should (a)
-      ;; propagate results back across the command server to talon; (b) apply
-      ;; changes using the "newState" field.
-      ;;
-      ;; To apply changes:
-      ;; - figure out which buffer to update from "path"
-      ;; - diff the "contentsPath" against buffer (or temporary file?) contents & apply updates
-      ;; - update the cursor(s) from "cursors"
-
-      ;; (message "-- CURSORLESS received: %s"
-      ;;          (with-current-buffer cursorless-socket-buffer
-      ;;            (buffer-substring-no-properties (point-min) (point-max))))
-      )))
+      (cursorless-receive
+       (with-current-buffer cursorless-socket-buffer
+         ;; (message "-- CURSORLESS received: %s"
+         ;;          (buffer-substring-no-properties (point-min) (point-max)))
+         (goto-char (point-min)) ;; json-parse-buffer parses forward from point.
+         (json-parse-buffer))))))
 
 (defun cursorless-send (cmd)
+  ;; TODO: need to figure out what to do if we issue another cursorless-send
+  ;; before the response for the first send is received.
   (with-current-buffer cursorless-socket-buffer
     (erase-buffer))
   (let ((p (make-network-process
@@ -102,6 +97,55 @@
     ;; (message "-- CURSORLESS sending: %s" cmd)
     (process-send-string p cmd)))
 
+(defun cursorless-receive (response)
+  ;; TODO: handle replies like "pong" which don't give a new state.
+
+  ;; TODO: The command finished, process its results. We should (a) propagate
+  ;; results back across the command server to talon; (b) apply changes using
+  ;; the "newState" field.
+  ;;
+  ;; To apply changes:
+  ;; - figure out which buffer to update from "path"
+  ;; - diff the "contentsPath" against buffer (or temporary file?) contents & apply updates
+  ;; - update the cursor(s) from "cursors"
+  (let* ((new-state (gethash "newState" response))
+         (path (gethash "path" new-state))
+         (contents-path (gethash "contentsPath" new-state)))
+    ;; Find the buffer to update. For now, we just check it's the current buffer.
+    (unless (and (local-variable-p 'cursorless-temporary-file)
+                 (string-equal path cursorless-temporary-file))
+      (error "Update to non-current buffer, ignoring!"))
+    ;; Ideally we'd do a diff and then apply the minimal update. Instead I'm
+    ;; just going to replace the whole buffer.
+    (unless (file-exists-p contents-path) (error "No contents file!"))
+    (insert-file-contents-literally contents-path nil nil nil t)
+    ;; Update cursor & selection.
+    ;; assume 1 cursor for now.
+    (let* ((cursor (elt (gethash "cursors" new-state) 0))
+           (active (gethash "active" cursor))
+           (anchor (gethash "anchor" cursor))
+           (line   (gethash "line" active))
+           (column (gethash "character" active))
+           (anchor-line (gethash "line" anchor))
+           (anchor-column (gethash "character" anchor))
+           (selection (not (and (eql line anchor-line)
+                                (eql column anchor-column)))))
+      ;; Update the selection.
+     (when selection
+       (goto-char (point-min))
+       (forward-line anchor-line)
+       (forward-char anchor-column)
+       ;; location = (point), nomsg = t
+       (push-mark (point) t))
+     ;; Update cursor position.
+     (goto-char (point-min))
+     (forward-line line)
+     (forward-char column)
+     (when selection (setq transient-mark-mode '(only))))
+
+    ;; Update state for cursorless to read.
+    (cursorless-send-state-callback)))
+
 ;; ping, state, stateWithContents, applyPrimaryEditorState (?),
 ;; command, cursorless, pid
 ;;
@@ -109,7 +153,7 @@
 ;; cursorless: runs a command then serializes state afterward
 ;;
 ;; what is 'applyPrimaryEditorState'?
-(cursorless-send "{\"command\": \"ping\"}")
+;(cursorless-send "{\"command\": \"ping\"}")
 
 ;; ;; see also
 ;; (accept-process-output p 1) ; semi-blocking interface
