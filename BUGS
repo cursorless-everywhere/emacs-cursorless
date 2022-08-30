@@ -1,0 +1,7 @@
+- Synchronization of selection
+- can't use line numbers
+- next-line sometimes incorrectly goes to start of line
+- "cursorless cheatsheet" doesn't work (need to update cursorless?)
+- hats in wrong positions after insertions or deletions;
+  this can leave hats hanging after large deletions, for example.
+
