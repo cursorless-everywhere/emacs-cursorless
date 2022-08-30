@@ -6,8 +6,8 @@
 - Hats in wrong positions after insertions or deletions;
   this can leave hats hanging after large deletions, for example.
 
-- Synchronization doesn't work for terminal or comint buffers because it triggers
-  post-command and subprocesses can update the buffer in the background.
+- Synchronization doesn't work for terminal or comint buffers because it only
+  triggers post-command and subprocesses can update the buffer in the background.
 
 - Doesn't work in many non-file buffers, because it tries to update the entire
   buffer at once instead of applying a small diff.
