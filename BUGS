@@ -1,7 +1,17 @@
-- Synchronization of selection
-- can't use line numbers
-- next-line sometimes incorrectly goes to start of line
+- Synchronization of selection not quite right.
+- Can't use line numbers.
+- next-line sometimes incorrectly goes to start of line.
 - "cursorless cheatsheet" doesn't work (need to update cursorless?)
-- hats in wrong positions after insertions or deletions;
+
+- Hats in wrong positions after insertions or deletions;
   this can leave hats hanging after large deletions, for example.
 
+- Synchronization doesn't work for terminal or comint buffers because it triggers
+  post-command and subprocesses can update the buffer in the background.
+
+- Doesn't work in many non-file buffers, because it tries to update the entire
+  buffer at once instead of applying a small diff.
+  eg: ansi-term
+
+- Wrong hat positions in dired mode, I think because some text is hidden and
+  it gets sent to cursorless anyways.
