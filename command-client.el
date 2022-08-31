@@ -160,4 +160,7 @@
 ;; (accept-process-output p 1) ; semi-blocking interface
 ;; (all-threads) ; emacs has (cooperative) threads! could use them? nah.
 
+
+(global-set-key (kbd "<C-f17>") 'command-server-trigger)
+
 (provide 'command-client)
