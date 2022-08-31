@@ -156,3 +156,5 @@
         ))
     ;; scale 1 because we've already accounted for pixel sizes correctly.
     (svg-image svg :scale 1)))
+
+(provide 'cursorless-hats)

@@ -96,3 +96,5 @@
       ;; make-temp-file-internal because it doesn't try to do magic with file names
       (setq cursorless-temporary-file
             (make-temp-file-internal prefix nil extension nil)))))
+
+(provide 'cursorless-state)

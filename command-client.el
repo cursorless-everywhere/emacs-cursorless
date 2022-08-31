@@ -1,7 +1,7 @@
 ;; Implements a command client for emacs, forwarding cursorless commands over a
 ;; socket to the VSCode sidecar.
 
-(defcustom command-server-directory-name "emacs-command-server"
+(defconst command-server-directory-name "emacs-command-server"
   "Name of directory to use for the emacs command server. Will be suffixed with the user's real UID.")
 
 (defun command-server-directory ()
@@ -159,3 +159,5 @@
 ;; ;; see also
 ;; (accept-process-output p 1) ; semi-blocking interface
 ;; (all-threads) ; emacs has (cooperative) threads! could use them? nah.
+
+(provide 'command-client)
