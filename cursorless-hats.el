@@ -5,6 +5,7 @@
 ;; TODO: defcustom
 (defconst cursorless-color-alist
   '((default . "#999") (blue . "#04f") (red . "#e00") (green . "#0b0")
+    (yellow . "#ffc000")
     (pink . "#ffa0ff")))
 ;; (defconst cursorless-color-alist ; dark theme
 ;;   '((default . "#999") (blue . "#0af") (red . "#f00") (pink . "#fa8072") (green . "#0a0")))
