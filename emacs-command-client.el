@@ -22,7 +22,7 @@
   (delete-directory (command-server-directory) t))
 
 (command-server-start)
-;; TODO: at shutdown, call command-server-quit.
+(add-hook 'kill-emacs-hook 'command-server-quit)
 
 (defun command-server-trigger ()
   "Trigger command execution."
