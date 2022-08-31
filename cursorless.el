@@ -13,6 +13,8 @@
 (require 'json) ;; used for json-pretty-print-buffer, which could be removed
 (require 'filenotify)
 
+(require 'emacs-command-client)
+
 (defvar cursorless-measure-time nil)
 (defmacro measure-time (name &rest body)
   "Measure the time it takes to evaluate BODY."
@@ -165,6 +167,7 @@
        (setq cursorless-hats-update-timer nil)
        (when hats-buffer (with-current-buffer hats-buffer (cursorless-update-hats))))
      (setq cursorless-updating-hats nil))))
+
 (defun cursorless-hats-change-callback (&optional event)
   (if cursorless-updating-hats
       (message "cursorless-hats CHANGE RECURSIVE, set cursorless-updating-hats to nil to re-enable")
@@ -299,3 +302,6 @@
         ))
     ;; scale 1 because we've already accounted for pixel sizes correctly.
     (svg-image svg :scale 1)))
+
+
+(provide 'cursorless)

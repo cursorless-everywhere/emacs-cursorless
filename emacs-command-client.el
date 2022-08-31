@@ -159,3 +159,5 @@
 ;; ;; see also
 ;; (accept-process-output p 1) ; semi-blocking interface
 ;; (all-threads) ; emacs has (cooperative) threads! could use them? nah.
+
+(provide 'emacs-command-client)
