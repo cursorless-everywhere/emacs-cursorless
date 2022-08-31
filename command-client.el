@@ -1,7 +1,7 @@
 ;; Implements a command client for emacs, forwarding cursorless commands over a
 ;; socket to the VSCode sidecar.
 
-(defcustom command-server-directory-name "emacs-command-server"
+(defconst command-server-directory-name "emacs-command-server"
   "Name of directory to use for the emacs command server. Will be suffixed with the user's real UID.")
 
 (defun command-server-directory ()
@@ -22,7 +22,7 @@
   (delete-directory (command-server-directory) t))
 
 (command-server-start)
-;; TODO: at shutdown, call command-server-quit.
+(add-hook 'kill-emacs-hook 'command-server-quit)
 
 (defun command-server-trigger ()
   "Trigger command execution."
@@ -160,4 +160,7 @@
 ;; (accept-process-output p 1) ; semi-blocking interface
 ;; (all-threads) ; emacs has (cooperative) threads! could use them? nah.
 
+
 (global-set-key (kbd "<C-f17>") 'command-server-trigger)
+
+(provide 'command-client)
