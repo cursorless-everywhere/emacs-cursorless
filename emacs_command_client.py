@@ -1,9 +1,4 @@
-import json
-
-from talon import Context, actions, clip
-
-# from user.knausj.apps.vscode.command_client import command_client
-# NotSet = command_client.NotSet
+from talon import Context, actions
 
 ctx = Context()
 
@@ -18,7 +13,7 @@ ctx.tags = ["user.command_client"]
 @ctx.action_class("user")
 class UserActions:
     def command_server_directory() -> str:
-        return "emacs-command-server" # unused/unimplemented for now
+        return "emacs-command-server"
 
     def trigger_command_server_command_execution():
         actions.key("ctrl-f17")

@@ -42,7 +42,7 @@
 ;; Load everything.
 (let ((load-path (cons (file-name-directory (or load-file-name (buffer-file-name)))
                        load-path)))
- (require 'cursorless-state)
- (require 'cursorless-hats)
- (require 'command-client))
+  (require 'cursorless-state)
+  (require 'cursorless-hats)
+  (require 'command-client))
 (provide 'cursorless)
