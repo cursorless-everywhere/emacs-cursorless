@@ -138,7 +138,7 @@
 
 (defun cursorless-line-svg (columns hats font-width font-height)
   (let* ((w font-width)
-         (dia (* w 0.5)) (h (* 0.6 font-height)) (r (/ dia 2)) (ypos (- h (* r 2)))
+         ;; (dia (* w 0.5)) (h (* 0.6 font-height)) (r (/ dia 2)) (ypos (- h (* r 2)))
          ;; (dia (* w .45)) (h (* w 0.8)) (r (/ dia 2)) (ypos (- h (* r 1.5)))
          (dia (* w .44)) (r (* 0.5 dia)) (h (+ 2 (round dia))) (ypos (- h (* r 1) 1))
          (dia (* w .44)) (r (* 0.5 dia)) (h (ceiling dia)) (ypos (- h r))
@@ -150,8 +150,8 @@
       (let* ((color (plist-get hat :color))
              (xoffset (* w (plist-get hat :column)))
              (xcenter (+ xoffset (/ w 2.0))))
-        ;; TODO: squash this to an ellipse to save vertical space.
         ;(svg-circle svg xcenter ypos r :fill color)
+        ;; squashed ellipse to save vertical space.
         (svg-ellipse svg xcenter ypos r (/ (- h 1) 2.0) :fill color)
         ;(svg-rectangle svg (- xcenter r) 1 dia dia :fill color)
         ))
