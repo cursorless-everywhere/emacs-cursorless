@@ -10,7 +10,7 @@
 ;; (defconst cursorless-color-alist ; dark theme
 ;;   '((default . "#999") (blue . "#0af") (red . "#f00") (pink . "#fa8072") (green . "#0a0")))
 
-;; FIXME: should support hats in all buffers.
+(defvar cursorless-hats-enabled t)
 (defvar cursorless-hats-buffer nil)
 
 (defvar cursorless-updating-hats nil)
@@ -25,8 +25,7 @@
      (progn
        (setq cursorless-updating-hats t)
        (setq cursorless-hats-update-timer nil)
-       (when cursorless-hats-buffer
-         (with-current-buffer cursorless-hats-buffer (cursorless-update-hats))))
+       (when cursorless-hats-enabled (cursorless-update-hats)))
      (setq cursorless-updating-hats nil))))
 (defun cursorless-hats-change-callback (&optional event)
   (if cursorless-updating-hats
@@ -42,19 +41,19 @@
       (file-notify-rm-watch cursorless-hats-watcher))
     (file-notify-add-watch cursorless-hats-file '(change) 'cursorless-hats-change-callback)))
 
+;; FIXME: need to initialize hats whenever we switch to a buffer without them.
 (defun show-hats ()
   (interactive)
-  (when cursorless-hats-buffer
-    (with-current-buffer cursorless-hats-buffer (cursorless-clear-overlays)))
-  (setq cursorless-hats-buffer (current-buffer))
+  (when cursorless-hats-enabled (cursorless-clear-overlays))
+  (setq cursorless-hats-enabled t)
   (cursorless-initialize-hats)
   (cursorless-hats-update-callback))
 
+;;; FIXME: need to deinitialize hats in all buffers which have them.
 (defun hide-hats ()
   (interactive)
-  (when cursorless-hats-buffer
-    (with-current-buffer cursorless-hats-buffer (cursorless-clear-overlays)))
-  (setq cursorless-hats-buffer nil))
+  (when cursorless-hats-enabled (cursorless-clear-overlays))
+  (setq cursorless-hats-enabled nil))
 
 (defun cursorless-clear-overlays ()
   (interactive)
