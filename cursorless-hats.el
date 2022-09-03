@@ -92,6 +92,7 @@
   (clrhash cursorless-hats)
   (cl-loop
    ;; for now we assume there's only one file, so we just grab the cdar.
+   ;; FIXME: use cursorless-temporary-file-buffers instead!
    for (color . hats) in (cdar hats-json)
    do (cl-loop
        for hat across hats
