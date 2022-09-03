@@ -84,14 +84,15 @@
   ;; TODO: need to _actually_ use the file path info from the hats file.
   ;; to do this we need a reverse map from temp files to buffers.
   (let* ((json (cursorless-read-hats-json))
-         (temporary-file (symbol-name (caar json)))
+         (temporary-file (and (caar json) (symbol-name (caar json))))
          (buffer (gethash temporary-file cursorless-temporary-file-buffers)))
-    (setq cursorless-hats-json json)
-    (unless temporary-file
-      (warn "could not extract temporary file name from json"))
-    (unless buffer
-      (warn "temporary file not associated with a buffer: %s" temporary-file)
-      (message "temporary-file: %s" temporary-file))
+    (cond
+     ((null json) (warn "Read null json file."))
+     ((null temporary-file)
+      (warn "could not extract temporary file name from json")
+      (setq cursorless-hats-json json))
+     ((null buffer)
+      (warn "temporary file not associated with a buffer: %S" temporary-file)))
     (unless (equal buffer cursorless-hats-buffer)
       (when (and cursorless-hats-buffer (buffer-live-p cursorless-hats-buffer))
         (with-current-buffer cursorless-hats-buffer (cursorless-clear-overlays)))
