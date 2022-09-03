@@ -70,7 +70,7 @@
   ;; TODO: only write if buffer contents have changed since last write!
   ;; TODO: check if file is too damn big.
   (let ((file-name-handler-alist '())) ;; avoid compression etc.
-    (write-region nil nil (cursorless-temporary-file-path) nil 'ignore-message))
+    (write-region (point-min) (point-max) (cursorless-temporary-file-path) nil 'ignore-message))
   (let ((state (cursorless-get-state)))
     (with-temp-file cursorless-editor-state-file
       (json-insert state))))
