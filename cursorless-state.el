@@ -100,10 +100,9 @@
    ))
 
 (defun cursorless-temporary-file-path ()
-  (if (and (local-variable-p 'cursorless-temporary-file)
-           ;; If file has been deleted we must make a new one.
-           (file-exists-p cursorless-temporary-file))
-      cursorless-temporary-file
+  (unless (and (local-variable-p 'cursorless-temporary-file)
+               ;; If file has been deleted we must make a new one.
+               (file-exists-p cursorless-temporary-file))
     (let* ((file-extension (and (buffer-file-name)
                                 (file-name-extension (buffer-file-name))))
            (suffix (if file-extension (concat "." file-extension) ""))
@@ -113,9 +112,9 @@
            (prefix (concat dirname name "-")))
       (make-directory dirname t)
       ;; make-temp-file-internal because it doesn't try to do magic with file names
-      (setq cursorless-temporary-file
-            (make-temp-file-internal prefix nil suffix nil))
+      (setq cursorless-temporary-file (make-temp-file-internal prefix nil suffix nil))
       (puthash cursorless-temporary-file (current-buffer)
-               cursorless-temporary-file-buffers))))
+               cursorless-temporary-file-buffers)))
+  cursorless-temporary-file)
 
 (provide 'cursorless-state)

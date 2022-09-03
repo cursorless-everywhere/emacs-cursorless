@@ -77,6 +77,7 @@
 ;; }
 ;;
 ;; when hats have shapes, COLORNAME is altered (TODO: how).
+(defvar cursorless-hats-json)
 (defvar cursorless-hats-buffer nil)
 
 (defun cursorless-update-hats ()
@@ -85,13 +86,16 @@
   (let* ((json (cursorless-read-hats-json))
          (temporary-file (symbol-name (caar json)))
          (buffer (gethash temporary-file cursorless-temporary-file-buffers)))
+    (setq cursorless-hats-json json)
+    (unless temporary-file
+      (warn "could not extract temporary file name from json"))
     (unless buffer
-      (warn "cursorless-hats.el: temporary file not associated with a buffer: %s"
-            temporary-file))
+      (warn "temporary file not associated with a buffer: %s" temporary-file)
+      (message "temporary-file: %s" temporary-file))
     (unless (equal buffer cursorless-hats-buffer)
-      (when cursorless-hats-buffer
+      (when (and cursorless-hats-buffer (buffer-live-p cursorless-hats-buffer))
         (with-current-buffer cursorless-hats-buffer (cursorless-clear-overlays)))
-      (when buffer
+      (when (and buffer (buffer-live-p buffer))
         (with-current-buffer buffer (cursorless-initialize-hats))))
     (setq cursorless-hats-buffer buffer)
     (measure-time "update hats"
