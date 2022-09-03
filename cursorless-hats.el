@@ -27,9 +27,8 @@
        (when cursorless-show-hats (cursorless-update-hats)))
      (setq cursorless-updating-hats nil))))
 (defun cursorless-hats-change-callback (&optional event)
-  (if cursorless-updating-hats
-      (message "cursorless-hats CHANGE RECURSIVE, set cursorless-updating-hats to nil to re-enable")
-    (ignore))
+  (when cursorless-updating-hats
+    (message "cursorless-hats CHANGE RECURSIVE, set cursorless-updating-hats to nil to re-enable"))
   (unless (or cursorless-updating-hats cursorless-hats-update-timer)
     (setq cursorless-hats-update-timer
           (run-with-idle-timer 0 nil 'cursorless-hats-update-callback))))
@@ -78,14 +77,27 @@
 ;; }
 ;;
 ;; when hats have shapes, COLORNAME is altered (TODO: how).
+(defvar cursorless-hats-buffer nil)
+
 (defun cursorless-update-hats ()
   ;; TODO: need to _actually_ use the file path info from the hats file.
   ;; to do this we need a reverse map from temp files to buffers.
-  (measure-time "update hats"
-    (cursorless-update-overlays
-    (measure-time "read/index hats"
-      (cursorless-index-hats
-      (cursorless-read-hats-json))))))
+  (let* ((json (cursorless-read-hats-json))
+         (temporary-file (symbol-name (caar json)))
+         (buffer (gethash temporary-file cursorless-temporary-file-buffers)))
+    (unless buffer
+      (warn "cursorless-hats.el: temporary file not associated with a buffer: %s"
+            temporary-file))
+    (unless (equal buffer cursorless-hats-buffer)
+      (when cursorless-hats-buffer
+        (with-current-buffer cursorless-hats-buffer (cursorless-clear-overlays)))
+      (when buffer
+        (with-current-buffer buffer (cursorless-initialize-hats))))
+    (setq cursorless-hats-buffer buffer)
+    (measure-time "update hats"
+      (cursorless-update-overlays
+        (measure-time "read/index hats"
+          (cursorless-index-hats json))))))
 
 (defvar cursorless-hats (make-hash-table))
 (defun cursorless-index-hats (hats-json)
@@ -103,8 +115,8 @@
        for column   = (alist-get 'character position)
        for rest     = (gethash line cursorless-hats '())
        for hat     = `(:column ,column
-                               :color ,(or (cdr (assoc color cursorless-color-alist))
-                                           (symbol-name color)))
+                       :color ,(or (cdr (assoc color cursorless-color-alist))
+                                   (symbol-name color)))
        do (puthash line (cons hat rest) cursorless-hats)))
   cursorless-hats)
 
@@ -137,6 +149,8 @@
              (overlay-put overlay 'before-string text))
         do (forward-line))))))
 
+;; FIXME: multiplying character width by character offset doesn't work for
+;; strange-width characters (eg. TABS!).
 (defun cursorless-line-svg (columns hats font-width font-height)
   (let* ((w font-width)
          ;; (dia (* w 0.5)) (h (* 0.6 font-height)) (r (/ dia 2)) (ypos (- h (* r 2)))

@@ -4,8 +4,8 @@
 (defconst cursorless-editor-state-file
   (concat cursorless-directory "editor-state.json"))
 
-;; Bidirectional mapping between buffers and their temporary files.
-(defvar cursorless-temporary-file-buffers (make-hash-table))
+;; Maps from temporary file paths (strings) to their buffers.
+(defvar cursorless-temporary-file-buffers (make-hash-table :test 'equal))
 (make-variable-buffer-local 'cursorless-temporary-file)
 ;; permanent-local --> survives major mode change
 (put 'cursorless-temporary-file 'permanent-local t)
