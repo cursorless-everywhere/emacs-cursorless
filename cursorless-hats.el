@@ -10,8 +10,7 @@
 ;; (defconst cursorless-color-alist ; dark theme
 ;;   '((default . "#999") (blue . "#0af") (red . "#f00") (pink . "#fa8072") (green . "#0a0")))
 
-(defvar cursorless-hats-enabled t)
-(defvar cursorless-hats-buffer nil)
+(defvar cursorless-show-hats t)
 
 (defvar cursorless-updating-hats nil)
 (defvar cursorless-hats-update-timer nil)
@@ -25,7 +24,7 @@
      (progn
        (setq cursorless-updating-hats t)
        (setq cursorless-hats-update-timer nil)
-       (when cursorless-hats-enabled (cursorless-update-hats)))
+       (when cursorless-show-hats (cursorless-update-hats)))
      (setq cursorless-updating-hats nil))))
 (defun cursorless-hats-change-callback (&optional event)
   (if cursorless-updating-hats
@@ -44,16 +43,16 @@
 ;; FIXME: need to initialize hats whenever we switch to a buffer without them.
 (defun show-hats ()
   (interactive)
-  (when cursorless-hats-enabled (cursorless-clear-overlays))
-  (setq cursorless-hats-enabled t)
+  (when cursorless-show-hats (cursorless-clear-overlays))
+  (setq cursorless-show-hats t)
   (cursorless-initialize-hats)
   (cursorless-hats-update-callback))
 
 ;;; FIXME: need to deinitialize hats in all buffers which have them.
 (defun hide-hats ()
   (interactive)
-  (when cursorless-hats-enabled (cursorless-clear-overlays))
-  (setq cursorless-hats-enabled nil))
+  (when cursorless-show-hats (cursorless-clear-overlays))
+  (setq cursorless-show-hats nil))
 
 (defun cursorless-clear-overlays ()
   (interactive)
@@ -80,6 +79,8 @@
 ;;
 ;; when hats have shapes, COLORNAME is altered (TODO: how).
 (defun cursorless-update-hats ()
+  ;; TODO: need to _actually_ use the file path info from the hats file.
+  ;; to do this we need a reverse map from temp files to buffers.
   (measure-time "update hats"
     (cursorless-update-overlays
     (measure-time "read/index hats"
