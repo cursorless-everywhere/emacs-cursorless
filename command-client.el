@@ -16,7 +16,7 @@
 (defun command-server-start ()
   (interactive)
   (let ((d (command-server-directory)))
-   (unless (and (file-exists-p d) (file-directory-p))
+   (unless (and (file-exists-p d) (file-directory-p d))
      (make-directory d))))
 
 (defun command-server-quit ()
