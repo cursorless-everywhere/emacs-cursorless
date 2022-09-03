@@ -4,11 +4,29 @@
 (defconst cursorless-editor-state-file
   (concat cursorless-directory "editor-state.json"))
 
+;; Bidirectional mapping between buffers and their temporary files.
+(defvar cursorless-temporary-file-buffers (make-hash-table))
 (make-variable-buffer-local 'cursorless-temporary-file)
 ;; permanent-local --> survives major mode change
 (put 'cursorless-temporary-file 'permanent-local t)
-;; TODO: remove temporary files when the buffer is closed
-;; need buffer-list-update-hook
+
+;; Call if cursorless-temporary-file-buffers gets out of sync. Shouldn't happen
+;; in normal use.
+(defun cursorless-refresh-temporary-file-buffers ()
+  (interactive)
+  (clrhash cursorless-temporary-file-buffers)
+  (dolist (b (buffer-list))
+    (with-current-buffer b
+      (when (and (local-variable-p 'cursorless-temporary-file))
+        (puthash cursorless-temporary-file b cursorless-temporary-file-buffers)))))
+
+(defun cursorless-kill-buffer-callback ()
+  (when (local-variable-p 'cursorless-temporary-file)
+    (remhash cursorless-temporary-file cursorless-temporary-file-buffers)
+    (delete-file cursorless-temporary-file)))
+
+;; need buffer-list-update-hook or kill-buffer-hook
+(add-hook 'kill-buffer-hook 'cursorless-kill-buffer-callback)
 
 (defvar cursorless-sync-state t)
 (defvar cursorless-send-state-timer (timer-create))
@@ -83,11 +101,12 @@
 
 (defun cursorless-temporary-file-path ()
   (if (and (local-variable-p 'cursorless-temporary-file)
-           ;; if file has been deleted we probably want to make a new one.
+           ;; If file has been deleted we must make a new one.
            (file-exists-p cursorless-temporary-file))
       cursorless-temporary-file
-    (let* ((extension (if (null (buffer-file-name)) ""
-                        (concat "." (file-name-extension (buffer-file-name)))))
+    (let* ((file-extension (and (buffer-file-name)
+                                (file-name-extension (buffer-file-name))))
+           (suffix (if file-extension (concat "." file-extension) ""))
            (dirname (concat (file-name-as-directory temporary-file-directory)
                             "cursorless.el/"))
            (name (replace-regexp-in-string "[*/\\\\]" "_" (buffer-name)))
@@ -95,6 +114,8 @@
       (make-directory dirname t)
       ;; make-temp-file-internal because it doesn't try to do magic with file names
       (setq cursorless-temporary-file
-            (make-temp-file-internal prefix nil extension nil)))))
+            (make-temp-file-internal prefix nil suffix nil))
+      (puthash cursorless-temporary-file (current-buffer)
+               cursorless-temporary-file-buffers))))
 
 (provide 'cursorless-state)
