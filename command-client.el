@@ -41,61 +41,67 @@
                       (json-parse-buffer))))
          (command-id (gethash "commandId" request))
          (args (gethash "args" request))
-         (wait-for-finish (gethash "waitForFinish" request))
-         (return-command-output (gethash "returnCommandOutput" request))
+         (wait-for-finish (null (eq :false (gethash "waitForFinish" request))))
+         (return-command-output (null (eq :false (gethash "returnCommandOutput" request))))
          (uuid (gethash "uuid" request)))
+    (cl-flet ((respond (value)
+                (with-temp-file response-path
+                  (json-insert `(:uuid ,uuid
+                                 :warnings []
+                                 :error :null
+                                 :returnValue ,value))
+                  (insert "\n"))))
+     ;; TODO: Eventually I'd like to make it possible to run arbitrary emacs lisp
+     ;; code via the command server. For now, though, I'm just going to
+     ;; special-case cursorless.
+     (cond
 
-    ;; TODO: Eventually I'd like to make it possible to run arbitrary emacs lisp
-    ;; code via the command server. For now, though, I'm just going to
-    ;; special-case cursorless.
-    (cond
+      ;; -- CURSORLESS COMMANDS --
+      ((string-equal command-id "cursorless.command")
+       ;; Forward to vscode. TODO: When wait-for-finish is true, we should wait
+       ;; _asynchronously_ to hear back from vscode. So we have to set up a
+       ;; callback which writes to response-path. Maybe fork a thread? or have a
+       ;; dedicated thread?
+       (let ((payload (make-hash-table :size 2)))
+         (puthash "command" "cursorless" payload)
+         (puthash "cursorlessArgs" (json-serialize args) payload)
+         (setq payload (json-serialize payload))
+         (cursorless-send payload))
+       ;; For now write an empty response.
+       (respond :null))
 
-     ;; -- CURSORLESS COMMANDS --
-     ((string-equal command-id "cursorless.command")
-      ;; Forward to vscode. TODO: When wait-for-finish is true, we should wait
-      ;; _asynchronously_ to hear back from vscode. So we have to set up a
-      ;; callback which writes to response-path. Maybe fork a thread? or have a
-      ;; dedicated thread?
-      (let ((payload (make-hash-table :size 2)))
-        (puthash "command" "cursorless" payload)
-        (puthash "cursorlessArgs" (json-serialize args) payload)
-        (setq payload (json-serialize payload))
-        (cursorless-send payload))
-      ;; For now write an empty response. FIXME.
-      (with-temp-file response-path
-        (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue :null))
-        (insert "\n")))
+      ;; -- ELISP EVAL --
+      ((string-equal command-id "eval")
+       (unless (eql 1 (seq-length args)) (error "eval takes only one argument"))
+       (let* ((code-string (elt args 0))
+              (res (read-from-string code-string))
+              (code (car res))
+              (_ (unless (eql (cdr res) (length code-string))
+                   (error "code contained unparsed junk"))))
+         ;; Assume the result is json-encodable. TODO: handle case it's not.
+         (respond (eval code))))
 
-     ;; -- ELISP EVAL --
-     ((string-equal command-id "eval")
-      (unless (eql 1 (seq-length args)) (error "eval takes only one argument"))
-      (let* ((code-string (elt args 0))
-             (res (read-from-string code-string))
-             (code (car res))
-             (_ (unless (eql (cdr res) (length code-string))
-                  (error "code contained unparsed junk")))
-             (result (eval code)))
-        (with-temp-file response-path
-          (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue ,result))
-          (insert "\n"))))
+      ;; -- ELISP CALL --
+      ((string-equal command-id "call")
+       (let* ((func (intern (elt args 0)))
+              (args (seq-into (seq-drop args 1) 'list)))
+         (respond (apply func args))))
 
-     ;; -- ELISP CALL --
-     ((string-equal command-id "call")
-      (let* ((func (intern (elt args 0)))
-             (args (seq-into (seq-drop args 1) 'list))
-             (result (apply func args)))
-        (with-temp-file response-path
-          (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue ,result))
-          (insert "\n"))))
+      ;; -- INTERACTIVE ELISP CALL --
+      ((string-equal command-id "call-interactively")
+       (when return-command-output
+         (warn "Requested command output of call-interactively; that is likely to time out, ignoring."))
+       (let ((func (intern (elt args 0))))
+         (unless (fboundp func) (error "Function not bound: %S" func))
+         ;; We issue the response _first_, so that we don't hang if the
+         ;; interactive call takes a while.
+         (respond :null)
+         (call-interactively (intern (elt args 0)))))
 
-     ;; -- INTERACTIVE ELISP CALL --
-     ((string-equal command-id "call-interactively")
-      (call-interactively (intern (elt args 0))))
-
-     ;; -- UNRECOGNIZED --
-     (t
-      ;; TODO: write an error response.
-      (error "Unrecognized command id %S" command-id)))))
+      ;; -- UNRECOGNIZED --
+      (t
+       ;; TODO: write an error response.
+       (error "Unrecognized command id %S" command-id))))))
 
 
 ;;; ---------- emacs -> vscode over cursorless socket ----------
