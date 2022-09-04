@@ -129,21 +129,20 @@
            (column (gethash "character" active))
            (anchor-line (gethash "line" anchor))
            (anchor-column (gethash "character" anchor))
-           (selection (not (and (eql line anchor-line)
-                                (eql column anchor-column)))))
+           (no-selection (and (eql line anchor-line) (eql column anchor-column))))
       ;; Update the selection.
-     (when selection
+     (unless no-selection
        (goto-char (point-min))
        (forward-line anchor-line)
        (forward-char anchor-column)
        ;; location = (point), nomsg = t
        (push-mark (point) t))
      ;; Update cursor position.
-     (goto-char (point-min))
-     (forward-line line)
-     (forward-char column)
-     (when selection (setq transient-mark-mode '(only))))
+     (goto-line-column line column)
+     (if no-selection (deactivate-mark) (activate-mark)))
 
+    ;; This keeps various things up-to-date, eg. hl-line-mode.
+    (run-hooks 'post-command-hook)
     ;; Update state for cursorless to read.
     (cursorless-send-state-callback)))
 
