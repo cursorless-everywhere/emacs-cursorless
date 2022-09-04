@@ -49,6 +49,8 @@
     ;; code via the command server. For now, though, I'm just going to
     ;; special-case cursorless.
     (cond
+
+     ;; -- CURSORLESS COMMANDS --
      ((string-equal command-id "cursorless.command")
       ;; Forward to vscode. TODO: When wait-for-finish is true, we should wait
       ;; _asynchronously_ to hear back from vscode. So we have to set up a
@@ -63,6 +65,34 @@
       (with-temp-file response-path
         (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue :null))
         (insert "\n")))
+
+     ;; -- ELISP EVAL --
+     ((string-equal command-id "eval")
+      (unless (eql 1 (seq-length args)) (error "eval takes only one argument"))
+      (let* ((code-string (elt args 0))
+             (res (read-from-string code-string))
+             (code (car res))
+             (_ (unless (eql (cdr res) (length code-string))
+                  (error "code contained unparsed junk")))
+             (result (eval code)))
+        (with-temp-file response-path
+          (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue ,result))
+          (insert "\n"))))
+
+     ;; -- ELISP CALL --
+     ((string-equal command-id "call")
+      (let* ((func (intern (elt args 0)))
+             (args (seq-into (seq-drop args 1) 'list))
+             (result (apply func args)))
+        (with-temp-file response-path
+          (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue ,result))
+          (insert "\n"))))
+
+     ;; -- INTERACTIVE ELISP CALL --
+     ((string-equal command-id "call-interactively")
+      (call-interactively (intern (elt args 0))))
+
+     ;; -- UNRECOGNIZED --
      (t
       ;; TODO: write an error response.
       (error "Unrecognized command id %S" command-id)))))
