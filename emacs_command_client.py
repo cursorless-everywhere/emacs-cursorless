@@ -16,4 +16,5 @@ class UserActions:
         return "emacs-command-server"
 
     def trigger_command_server_command_execution():
+        # PROBLEM: pressing ctrl-f17 in isearch-mode cancels it :(
         actions.key("ctrl-f17")

@@ -87,7 +87,8 @@
          (temporary-file (and (caar json) (symbol-name (caar json))))
          (buffer (gethash temporary-file cursorless-temporary-file-buffers)))
     (cond
-     ((null json) (warn "Read null json file."))
+     ((null json)
+      (message "cursorless-update-hats: vscode-hats.json contained empty object."))
      ((null temporary-file)
       (warn "could not extract temporary file name from json")
       (setq cursorless-hats-json json))
