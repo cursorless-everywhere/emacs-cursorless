@@ -44,30 +44,28 @@
          (wait-for-finish (gethash "waitForFinish" request))
          (return-command-output (gethash "returnCommandOutput" request))
          (uuid (gethash "uuid" request)))
+
     ;; TODO: Eventually I'd like to make it possible to run arbitrary emacs lisp
     ;; code via the command server. For now, though, I'm just going to
     ;; special-case cursorless.
-    (unless (string-equal command-id "cursorless.command")
+    (cond
+     ((string-equal command-id "cursorless.command")
+      ;; Forward to vscode. TODO: When wait-for-finish is true, we should wait
+      ;; _asynchronously_ to hear back from vscode. So we have to set up a
+      ;; callback which writes to response-path. Maybe fork a thread? or have a
+      ;; dedicated thread?
+      (let ((payload (make-hash-table :size 2)))
+        (puthash "command" "cursorless" payload)
+        (puthash "cursorlessArgs" (json-serialize args) payload)
+        (setq payload (json-serialize payload))
+        (cursorless-send payload))
+      ;; For now write an empty response. FIXME.
+      (with-temp-file response-path
+        (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue :null))
+        (insert "\n")))
+     (t
       ;; TODO: write an error response.
-      (error "Unrecognized command id %S" command-id))
-
-    ;; Forward to vscode. TODO: When wait-for-finish is true, we should wait
-    ;; _asynchronously_ to hear back from vscode. So we have to set up a
-    ;; callback which writes to response-path. Maybe fork a thread? or have a
-    ;; dedicated thread?
-    (let ((payload (make-hash-table)))
-      (puthash "command" "cursorless" payload)
-      (puthash "cursorlessArgs" (json-serialize args) payload)
-      (setq payload (json-serialize payload))
-      (cursorless-send payload))
-
-    ;; For now write an empty response. FIXME.
-    (with-temp-file response-path
-      (json-insert `(:uuid ,uuid
-                     :warnings []
-                     :error :null
-                     :returnValue :null))
-      (insert "\n"))))
+      (error "Unrecognized command id %S" command-id)))))
 
 
 ;;; ---------- emacs -> vscode over cursorless socket ----------
