@@ -1,6 +1,7 @@
 (require 'cl-macs)
 (require 'svg)
 (require 'filenotify)
+(require 'seq)
 
 
 ;; Utilities.

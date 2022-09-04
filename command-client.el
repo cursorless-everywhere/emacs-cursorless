@@ -201,3 +201,37 @@
 (global-set-key (kbd "<C-f17>") 'command-server-trigger)
 
 (provide 'command-client)
+
+;; Magical stuff.
+(require 'isearch)
+
+(define-key isearch-mode-map (kbd "<C-f17>") 'command-server-trigger)
+
+;; see also 'with-isearch-suspended
+(defun talon-insert (text)
+  (if isearch-mode
+      (seq-do 'isearch-printing-char text)
+    (insert text)))
+
+(defun talon-insert-between (before after)
+  (insert before)
+  (save-excursion (insert after)))
+
+(defun talon-peek-both ()
+  (let ((left (talon-peek-left)))
+    (vector left (talon-peek-right))))
+
+(defun talon-peek-left ()
+  (save-excursion
+    (let ((end (if (region-active-p)
+                   (goto-char (region-beginning))
+                 (point))))
+      (backward-word 2)
+      (buffer-substring-no-properties (point) end))))
+
+(defun talon-peek-right ()
+  (save-excursion
+    (let ((beg (if (region-active-p)
+                   (goto-char (region-end))
+                 (point))))
+      (buffer-substring-no-properties beg (line-end-position)))))
