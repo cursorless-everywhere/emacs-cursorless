@@ -139,7 +139,9 @@
        (push-mark (point) t))
      ;; Update cursor position.
      (goto-line-column line column)
-     (if no-selection (deactivate-mark) (activate-mark)))
+     (if no-selection (deactivate-mark)
+       (activate-mark t)
+       (setq-local transient-mark-mode (cons 'only transient-mark-mode))))
 
     ;; This keeps various things up-to-date, eg. hl-line-mode.
     (run-hooks 'post-command-hook)
