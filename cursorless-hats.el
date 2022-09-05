@@ -1,4 +1,5 @@
 (require 'dash)
+(require 's)
 
 ;; READING & DRAWING HATS FROM CURSORLESS
 (defconst cursorless-hats-file
@@ -27,11 +28,11 @@
   (if cursorless-updating-hats
       (warn "cursorless-hats-update-callback: recursive invocation detected!")
     (unwind-protect
-     (progn
-       (setq cursorless-updating-hats t)
-       (setq cursorless-hats-update-timer nil)
-       (when cursorless-show-hats (cursorless-update-hats)))
-     (setq cursorless-updating-hats nil))))
+        (progn
+          (setq cursorless-updating-hats t)
+          (setq cursorless-hats-update-timer nil)
+          (when cursorless-show-hats (cursorless-update-hats)))
+      (setq cursorless-updating-hats nil))))
 
 (defun cursorless-hats-change-callback (&optional event)
   (when cursorless-updating-hats
@@ -62,7 +63,7 @@
 (defun cursorless-clear-overlays ()
   (interactive)
   (measure-time cursorless-clear-overlays
-   (remove-overlays nil nil 'cursorless t)))
+                (remove-overlays nil nil 'cursorless t)))
 
 (defun cursorless-read-hats-json ()
   "Read the hats file and return an alist.
@@ -105,9 +106,10 @@ by a shape e.g. blue-bolt."
         (with-current-buffer cursorless-hats-buffer (cursorless-clear-overlays))))
     (setq cursorless-hats-buffer buffer)
     (cursorless-clear-overlays)
-    (-map (lambda(color-positions)
-            (let ((draw-hat (-partial 'cursorless-draw-hat (car color-positions))))
-              (-map draw-hat (cdr color-positions)))) (cdar json))))
+    (-map (lambda(color-shape-positions)
+            (-let* (((color shape) (s-split "-" (symbol-name (car color-shape-positions))))
+                    (draw-hat (-partial 'cursorless-draw-hat (intern color) shape)))
+              (-map draw-hat (cdr color-shape-positions)))) (cdar json))))
 
 (defun point-from-cursorless-position (cursorless-position)
   "Return the proper point for an alist from a cursorless position.
@@ -120,20 +122,33 @@ CURSORLESS-POSITION is an alist parsed from `cursorless-read-hats-json'."
       (forward-char (alist-get 'character pos))
       (point))))
 
-(defun cursorless-draw-hat (cursorless-color cursorless-position)
-  "Draw an individual hat on the current buffer.
-
-CURSORLESS-COLOR is a color name (e.g. default, blue, pink) which is sometimes
-followed by a hat shape e.g. default-bolt, blue-fox, pink-frame.
-
-CURSORLESS-POSITION is an alist parsed from `cursorless-read-hats-json'."
+(defun cursorless--get-hat-color (cursorless-color)
   (if-let ((hat-color (alist-get cursorless-color cursorless-color-alist)))
-      (let* ((hat-point (point-from-cursorless-position cursorless-position))
-             (hat-overlay (make-overlay hat-point (+ hat-point 1))))
-        (overlay-put hat-overlay 'cursorless t)
-        (overlay-put hat-overlay 'face `(:cursorless ,hat-color)))
+      hat-color
     (display-warning 'cursorless
                      (format "Unable to find mapping for cursorless color %s."
                              cursorless-color) :error)))
+
+(defun cursorless-draw-hat (cursorless-color cursorless-shape cursorless-position)
+  "Draw an individual hat on the current buffer.
+
+CURSORLESS-COLOR is a color name (e.g. default, blue, pink) that gets translated
+through `cursorless-color-alist'.
+
+CURSORLESS-SHAPE is the shape to render. If CURSORLESS-SHAPE is nil, the default
+dot gets rendered.
+
+CURSORLESS-POSITION is an alist parsed from `cursorless-read-hats-json'."
+  (when-let* ((hat-color (cursorless--get-hat-color cursorless-color))
+              (hat-point (point-from-cursorless-position cursorless-position))
+              (hat-overlay (make-overlay hat-point (+ hat-point 1))))
+    (overlay-put hat-overlay 'cursorless t)
+    (cond ((null cursorless-shape)
+           (overlay-put hat-overlay 'face `(:cursorless ,hat-color)))
+          ((string-equal cursorless-shape "frame")
+           (overlay-put hat-overlay 'face `(:box (:line-width (0 . -2) :color ,hat-color))))
+          (t (display-warning
+              'cursorless
+              (format "Unable to find mapping for cursorless shape %s." cursorless-shape) :error)))))
 
 (provide 'cursorless-hats)
