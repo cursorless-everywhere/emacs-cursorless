@@ -92,7 +92,7 @@
     :path (or (buffer-file-name) :null)
     :temporaryFilePath (cursorless-temporary-file-path)
     :firstVisibleLine (line-number-at-pos (window-start))
-    :lastVisibleLine  (line-number-at-pos (- (window-end) 1))
+    :lastVisibleLine  (line-number-at-pos (window-end))
     ;; where the cursors are. in emacs, only one cursor, so a singleton vector.
     ;; note that cursorless wants line/column, not offset.
     ;; TODO: if transient-mark-mode is enabled, represent the whole selection.
