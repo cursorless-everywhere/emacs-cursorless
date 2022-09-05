@@ -127,10 +127,13 @@ CURSORLESS-COLOR is a color name (e.g. default, blue, pink) which is sometimes
 followed by a hat shape e.g. default-bolt, blue-fox, pink-frame.
 
 CURSORLESS-POSITION is an alist parsed from `cursorless-read-hats-json'."
-  (when-let* ((hat-color (alist-get cursorless-color cursorless-color-alist))
-              (hat-point (point-from-cursorless-position cursorless-position))
-              (hat-overlay (make-overlay hat-point (+ hat-point 1))))
-    (overlay-put hat-overlay 'cursorless t)
-    (overlay-put hat-overlay 'face `(:cursorless ,hat-color))))
+  (if-let ((hat-color (alist-get cursorless-color cursorless-color-alist)))
+      (let* ((hat-point (point-from-cursorless-position cursorless-position))
+             (hat-overlay (make-overlay hat-point (+ hat-point 1))))
+        (overlay-put hat-overlay 'cursorless t)
+        (overlay-put hat-overlay 'face `(:cursorless ,hat-color)))
+    (display-warning 'cursorless
+                     (format "Unable to find mapping for cursorless color %s."
+                             cursorless-color) :error)))
 
 (provide 'cursorless-hats)
