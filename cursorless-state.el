@@ -29,14 +29,10 @@
 (add-hook 'kill-buffer-hook 'cursorless-kill-buffer-callback)
 
 (defvar cursorless-sync-state t)
-(defvar cursorless-send-state-timer (timer-create))
-(timer-set-function cursorless-send-state-timer 'cursorless-send-state)
-(timer-set-idle-time cursorless-send-state-timer 0 nil)
 
 ;; TODO: this doesn't work for comint buffers, which can update without the user
 ;; issuing a command. Use after-change-functions instead/in addition?
-(add-hook 'post-command-hook 'cursorless-send-state-callback)
-;(remove-hook 'post-command-hook 'cursorless-send-state-callback)
+(add-hook 'post-command-hook 'cursorless--send-state-when-idle)
 
 ;; TODO: do we really need cursorless-{enable,disable}-sync?
 (defun cursorless-enable-sync ()
@@ -46,24 +42,21 @@
 
 (defun cursorless-disable-sync ()
   (interactive)
-  (setq cursorless-sync-state nil)
-  (cancel-timer cursorless-send-state-timer))
+  (setq cursorless-sync-state nil))
 
 ;;; Scrolling seems janky, but it doesn't look like we're causing it?
 ;;; that is, removing this hook doesn't seem to fix the issue.
-(defun cursorless-send-state-callback ()
-  (when cursorless-sync-state
-    (if cursorless-send-state-timer
-        (timer-activate-when-idle cursorless-send-state-timer t)
-      (error "no idle timer"))))
+(defun cursorless--send-state-when-idle ()
+  (run-with-idle-timer 0 nil 'cursorless-send-state))
 
 (defun cursorless-send-state ()
   ;; TODO: maybe figure out how to avoid dumping state if it didn't change?
   ;; but when will that happen?
-  (unless (minibufferp) ;; don't do anything when in minibuffer
-    (progn ; measure-time "cursorless send state"
-      (setq cursorless-serial-number (+ 1 cursorless-serial-number))
-      (cursorless-dump-state))))
+  (when cursorless-sync-state
+    (unless (minibufferp) ;; don't do anything when in minibuffer
+      (progn ; measure-time "cursorless send state"
+        (setq cursorless-serial-number (+ 1 cursorless-serial-number))
+        (cursorless-dump-state)))))
 
 (defun cursorless-dump-state ()
   (interactive)
