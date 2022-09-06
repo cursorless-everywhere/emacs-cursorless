@@ -37,7 +37,7 @@
                       (error "No such file: %s" request-path)
                     (with-temp-buffer
                       (insert-file-contents-literally request-path)
-                      ;(message "-- COMMAND SERVER received request: %s" (buffer-string))
+                      ;; (message "-- COMMAND SERVER received request: %s" (buffer-string))
                       (json-parse-buffer))))
          (command-id (gethash "commandId" request))
          (args (gethash "args" request))
@@ -51,9 +51,8 @@
                                  :error :null
                                  :returnValue ,value))
                   (insert "\n"))))
-     ;; TODO: Eventually I'd like to make it possible to run arbitrary emacs lisp
-     ;; code via the command server. For now, though, I'm just going to
-     ;; special-case cursorless.
+     ;; TODO: Think more about what the API here should be.
+     ;; I'm piggybacking on cursorless' commandId/args model for now.
      (cond
 
       ;; -- CURSORLESS COMMANDS --
@@ -68,6 +67,8 @@
          (setq payload (json-serialize payload))
          (cursorless-send payload))
        ;; For now write an empty response.
+       ;; TODO: we need this response to implement actions that use, eg, getText,
+       ;; such as "format <formatter> at <target>".
        (respond :null))
 
       ;; -- ELISP EVAL --
@@ -115,8 +116,7 @@
         (warn "Cursorless: unexpected error on communicating with vscode: %s, %s" status event)
       (cursorless-receive
        (with-current-buffer cursorless-socket-buffer
-         ;; (message "-- CURSORLESS received: %s"
-         ;;          (buffer-substring-no-properties (point-min) (point-max)))
+         ;; (message "-- CURSORLESS received: %s" (buffer-substring-no-properties (point-min) (point-max)))
          (goto-char (point-min)) ;; json-parse-buffer parses forward from point.
          (json-parse-buffer))))))
 
