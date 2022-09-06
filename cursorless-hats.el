@@ -12,6 +12,7 @@
     (userColor1 . "#6a00ff")
     (userColor2 . "#ffd8b1"))
   "The mapping from cursorless color phrases to emacs colors."
+  :type '(alist :key-type symbol :value-type string)
   :group 'cursorless)
 
 (defvar cursorless-show-hats t)
@@ -60,7 +61,7 @@
 (defun cursorless-clear-overlays ()
   (interactive)
   (measure-time cursorless-clear-overlays
-   (remove-overlays nil nil 'cursorless t)))
+    (remove-overlays nil nil 'cursorless t)))
 
 (defun cursorless-read-hats-json ()
   (with-temp-buffer
