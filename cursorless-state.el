@@ -62,7 +62,9 @@
   (interactive)
   ;; TODO: only write if buffer contents have changed since last write!
   ;; TODO: check if file is too damn big.
-  (let ((file-name-handler-alist '())) ;; avoid compression etc.
+  ;; Use utf-8 and avoid auto-compression etc based on file extension.
+  (let ((coding-system-for-write 'utf-8)
+        (file-name-handler-alist '()))
     (write-region (point-min) (point-max) (cursorless-temporary-file-path) nil 'ignore-message))
   (let ((state (cursorless-get-state)))
     (with-temp-file cursorless-editor-state-file
