@@ -2,13 +2,17 @@
 (defconst cursorless-hats-file
   (concat cursorless-directory "vscode-hats.json"))
 
-;; TODO: defcustom
-(defconst cursorless-color-alist
-  '((default . "#999") (blue . "#04f") (red . "#e00") (green . "#0b0")
-    (yellow . "#ffc000")
-    (pink . "#ffa0ff")))
-;; (defconst cursorless-color-alist ; dark theme
-;;   '((default . "#999") (blue . "#0af") (red . "#f00") (pink . "#fa8072") (green . "#0a0")))
+(defcustom cursorless-color-alist
+  '((default . "#999")
+    (blue . "#04f")
+    (red . "#e00")
+    (pink . "#ffa0ff")
+    (green . "#0b0")
+    (yellow . "ffc000")
+    (userColor1 . "#6a00ff")
+    (userColor2 . "#ffd8b1"))
+  "The mapping from cursorless color phrases to emacs colors."
+  :group 'cursorless)
 
 (defvar cursorless-show-hats t)
 
