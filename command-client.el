@@ -146,9 +146,8 @@
        (setq-local transient-mark-mode (cons 'only transient-mark-mode))))
 
     ;; This keeps various things up-to-date, eg. hl-line-mode.
-    (run-hooks 'post-command-hook)
-    ;; Update state for cursorless to read.
-    (cursorless-send-state-callback)))
+    ;; It also sends our state to cursorless.
+    (run-hooks 'post-command-hook)))
 
 ;; ping, state, stateWithContents, applyPrimaryEditorState (?),
 ;; command, cursorless, pid
