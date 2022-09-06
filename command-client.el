@@ -119,7 +119,9 @@
     ;; Ideally we'd do a diff and then apply the minimal update. Instead I'm
     ;; just going to replace the whole buffer.
     (unless (file-exists-p contents-path) (error "No contents file!"))
-    (insert-file-contents-literally contents-path nil nil nil t)
+    (let ((coding-system-for-read 'utf-8)
+          (file-name-handler-alist '()))
+      (insert-file-contents contents-path nil nil nil t))
     ;; Update cursor & selection.
     ;; assume 1 cursor for now.
     (let* ((cursor (elt (gethash "cursors" new-state) 0))
