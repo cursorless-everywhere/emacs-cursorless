@@ -163,22 +163,21 @@
 ;; FIXME: multiplying character width by character offset doesn't work for
 ;; strange-width characters (eg. TABS!).
 (defun cursorless-line-svg (columns hats font-width font-height)
-  (let* ((w font-width)
-         ;; (dia (* w 0.5)) (h (* 0.6 font-height)) (r (/ dia 2)) (ypos (- h (* r 2)))
-         ;; (dia (* w .45)) (h (* w 0.8)) (r (/ dia 2)) (ypos (- h (* r 1.5)))
-         (dia (* w .44)) (r (* 0.5 dia)) (h (+ 2 (round dia))) (ypos (- h (* r 1) 1))
-         (dia (* w .44)) (r (* 0.5 dia)) (h (ceiling dia)) (ypos (- h r))
+  (let* ((h     (* font-height .3333))
+         (xrad  (* .2857 font-width))
+         (yrad  (* .4 h))
+         (ypos  (- h yrad))
          ;; if columns = 0, we still want a 1-pixel-wide image, otherwise we get
          ;; a weird 'empty box' image out of emacs.
-         (svg (svg-create (max 1 (* w columns)) h)))
+         (svg (svg-create (max 1 (* font-width columns)) h)))
     ;; hats is a list of plists with at least the properties :column & :color.
     (dolist (hat hats)
       (let* ((color (plist-get hat :color))
-             (xoffset (* w (plist-get hat :column)))
-             (xcenter (+ xoffset (/ w 2.0))))
+             (xoffset (* font-width (plist-get hat :column)))
+             (xcenter (+ xoffset (/ font-width 2.0))))
         ;(svg-circle svg xcenter ypos r :fill color)
         ;; squashed ellipse to save vertical space.
-        (svg-ellipse svg xcenter ypos r (/ (- h 1) 2.0) :fill color)
+        (svg-ellipse svg xcenter ypos xrad yrad :fill color)
         ;(svg-rectangle svg (- xcenter r) 1 dia dia :fill color)
         ))
     ;; scale 1 because we've already accounted for pixel sizes correctly.

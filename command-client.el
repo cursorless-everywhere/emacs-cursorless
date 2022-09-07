@@ -37,35 +37,72 @@
                       (error "No such file: %s" request-path)
                     (with-temp-buffer
                       (insert-file-contents-literally request-path)
-                      ;(message "-- COMMAND SERVER received request: %s" (buffer-string))
+                      ;; (message "-- COMMAND SERVER received request: %s" (buffer-string))
                       (json-parse-buffer))))
          (command-id (gethash "commandId" request))
          (args (gethash "args" request))
-         (wait-for-finish (gethash "waitForFinish" request))
-         (return-command-output (gethash "returnCommandOutput" request))
+         (wait-for-finish (null (eq :false (gethash "waitForFinish" request))))
+         (return-command-output (null (eq :false (gethash "returnCommandOutput" request))))
          (uuid (gethash "uuid" request)))
+    (cl-flet ((respond (value)
+                (with-temp-file response-path
+                  (json-insert `(:uuid ,uuid
+                                 :warnings []
+                                 :error :null
+                                 :returnValue ,value))
+                  (insert "\n"))))
+     ;; TODO: Think more about what the API here should be.
+     ;; I'm piggybacking on cursorless' commandId/args model for now.
+     (cond
 
-    ;; TODO: Eventually I'd like to make it possible to run arbitrary emacs lisp
-    ;; code via the command server. For now, though, I'm just going to
-    ;; special-case cursorless.
-    (cond
-     ((string-equal command-id "cursorless.command")
-      ;; Forward to vscode. TODO: When wait-for-finish is true, we should wait
-      ;; _asynchronously_ to hear back from vscode. So we have to set up a
-      ;; callback which writes to response-path. Maybe fork a thread? or have a
-      ;; dedicated thread?
-      (let ((payload (make-hash-table :size 2)))
-        (puthash "command" "cursorless" payload)
-        (puthash "cursorlessArgs" (json-serialize args) payload)
-        (setq payload (json-serialize payload))
-        (cursorless-send payload))
-      ;; For now write an empty response. FIXME.
-      (with-temp-file response-path
-        (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue :null))
-        (insert "\n")))
-     (t
-      ;; TODO: write an error response.
-      (error "Unrecognized command id %S" command-id)))))
+      ;; -- CURSORLESS COMMANDS --
+      ((string-equal command-id "cursorless.command")
+       ;; Forward to vscode. TODO: When wait-for-finish is true, we should wait
+       ;; _asynchronously_ to hear back from vscode. So we have to set up a
+       ;; callback which writes to response-path. Maybe fork a thread? or have a
+       ;; dedicated thread?
+       (let ((payload (make-hash-table :size 2)))
+         (puthash "command" "cursorless" payload)
+         (puthash "cursorlessArgs" (json-serialize args) payload)
+         (setq payload (json-serialize payload))
+         (cursorless-send payload))
+       ;; For now write an empty response.
+       ;; TODO: we need this response to implement actions that use, eg, getText,
+       ;; such as "format <formatter> at <target>".
+       (respond :null))
+
+      ;; -- ELISP EVAL --
+      ((string-equal command-id "eval")
+       (unless (eql 1 (seq-length args)) (error "eval takes only one argument"))
+       (let* ((code-string (elt args 0))
+              (res (read-from-string code-string))
+              (code (car res))
+              (_ (unless (eql (cdr res) (length code-string))
+                   (error "code contained unparsed junk"))))
+         ;; Assume the result is json-encodable. TODO: handle case it's not.
+         (respond (eval code))))
+
+      ;; -- ELISP CALL --
+      ((string-equal command-id "call")
+       (let* ((func (intern (elt args 0)))
+              (args (seq-into (seq-drop args 1) 'list)))
+         (respond (apply func args))))
+
+      ;; -- INTERACTIVE ELISP CALL --
+      ((string-equal command-id "call-interactively")
+       (when return-command-output
+         (warn "Requested command output of call-interactively; that is likely to time out, ignoring."))
+       (let ((func (intern (elt args 0))))
+         (unless (fboundp func) (error "Function not bound: %S" func))
+         ;; We issue the response _first_, so that we don't hang if the
+         ;; interactive call takes a while.
+         (respond :null)
+         (call-interactively (intern (elt args 0)))))
+
+      ;; -- UNRECOGNIZED --
+      (t
+       ;; TODO: write an error response.
+       (error "Unrecognized command id %S" command-id))))))
 
 
 ;;; ---------- emacs -> vscode over cursorless socket ----------
@@ -79,8 +116,7 @@
         (warn "Cursorless: unexpected error on communicating with vscode: %s, %s" status event)
       (cursorless-receive
        (with-current-buffer cursorless-socket-buffer
-         ;; (message "-- CURSORLESS received: %s"
-         ;;          (buffer-substring-no-properties (point-min) (point-max)))
+         ;; (message "-- CURSORLESS received: %s" (buffer-substring-no-properties (point-min) (point-max)))
          (goto-char (point-min)) ;; json-parse-buffer parses forward from point.
          (json-parse-buffer))))))
 
@@ -180,3 +216,37 @@
 (global-set-key (kbd "<C-f17>") 'command-server-trigger)
 
 (provide 'command-client)
+
+;; Magical stuff.
+(require 'isearch)
+
+(define-key isearch-mode-map (kbd "<C-f17>") 'command-server-trigger)
+
+;; see also 'with-isearch-suspended
+(defun talon-insert (text)
+  (if isearch-mode
+      (seq-do 'isearch-printing-char text)
+    (insert text)))
+
+(defun talon-insert-between (before after)
+  (insert before)
+  (save-excursion (insert after)))
+
+(defun talon-peek-both ()
+  (let ((left (talon-peek-left)))
+    (vector left (talon-peek-right))))
+
+(defun talon-peek-left ()
+  (save-excursion
+    (let ((end (if (region-active-p)
+                   (goto-char (region-beginning))
+                 (point))))
+      (backward-word 2)
+      (buffer-substring-no-properties (point) end))))
+
+(defun talon-peek-right ()
+  (save-excursion
+    (let ((beg (if (region-active-p)
+                   (goto-char (region-end))
+                 (point))))
+      (buffer-substring-no-properties beg (line-end-position)))))
