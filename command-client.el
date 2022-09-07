@@ -116,12 +116,26 @@
     (unless (and (local-variable-p 'cursorless-temporary-file)
                  (string-equal path cursorless-temporary-file))
       (error "Update to non-current buffer, ignoring!"))
-    ;; Ideally we'd do a diff and then apply the minimal update. Instead I'm
-    ;; just going to replace the whole buffer.
+
+    ;; Ideally we'd do a diff and then apply the minimal update. Instead we
+    ;; optimistically replace the whole buffer. If that fails due to read-only
+    ;; text, we check whether anything actually changed and fail if so.
     (unless (file-exists-p contents-path) (error "No contents file!"))
+    ;; Avoid doing any weird (de)compression stuff.
     (let ((coding-system-for-read 'utf-8)
           (file-name-handler-alist '()))
-      (insert-file-contents contents-path nil nil nil t))
+      (condition-case error-info
+          (insert-file-contents contents-path nil nil nil t)
+        (buffer-read-only
+         (let ((buffer (current-buffer)))
+           (with-temp-buffer
+             (insert-file-contents contents-path)
+             (unless (eql 0 (compare-buffer-substrings buffer nil nil
+                                                       (current-buffer) nil nil))
+               ;; Uh-oh, a change was made but we can't update the buffer b/c of
+               ;; read-only-ness. Propagate the error!
+               (signal (car error-info) (cdr error-info))))))))
+
     ;; Update cursor & selection.
     ;; assume 1 cursor for now.
     (let* ((cursor (elt (gethash "cursors" new-state) 0))
