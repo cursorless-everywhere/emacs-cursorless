@@ -37,7 +37,6 @@
                       (error "No such file: %s" request-path)
                     (with-temp-buffer
                       (insert-file-contents-literally request-path)
-                      ;(message "-- COMMAND SERVER received request: %s" (buffer-string))
                       (json-parse-buffer))))
          (command-id (gethash "commandId" request))
          (args (gethash "args" request))
@@ -68,7 +67,7 @@
       ;; TODO: write an error response.
       (error "Unrecognized command id %S" command-id)))))
 
-
+
 ;;; ---------- emacs -> vscode over cursorless socket ----------
 (defvar cursorless-socket-buffer (generate-new-buffer "*cursorless-vscode-socket*"))
 
@@ -88,8 +87,9 @@
       (while windows
         (set-window-point (car windows) (point-max))
         (setq windows (cdr windows))))))
+
 (defun cursorless-sentinel (proc event)
-  ;(message "cursorless-sentinel: %s(%s) %s" proc (process-status proc) event)
+                                        ;(message cursorless-sentinel: %s(%s) %s" proc (process-status proc) event)
   (let ((status (process-status proc)))
     (if (not (and (equal status 'closed)
                   (equal event "connection broken by remote peer\n")))
