@@ -120,8 +120,10 @@ by a shape e.g. blue-bolt."
 CURSORLESS-POSITION is an alist parsed from `cursorless-read-hats-json'."
   (let ((pos (alist-get 'start cursorless-position)))
     (save-excursion
-      (goto-char (point-min))
-      (forward-line (alist-get 'line pos))
+      (goto-char (window-start))
+      ;; ideally we'd use line-number-at-pos (window-start), see https://emacs.stackexchange.com/a/3822
+      ;; for context. this offers roughly a 10x speedup.
+      (forward-line (-  (alist-get 'line pos) (1- (string-to-number (format-mode-line "%l")))))
       (forward-char (alist-get 'character pos))
       (point))))
 
