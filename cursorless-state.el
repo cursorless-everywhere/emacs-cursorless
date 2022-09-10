@@ -67,6 +67,7 @@
         (file-name-handler-alist '()))
     (write-region (point-min) (point-max) (cursorless-temporary-file-path) nil 'ignore-message))
   (let ((state (cursorless-get-state)))
+    (cursorless-log (format "dumping state for %S \n %S" (current-buffer) (cursorless--json-pretty-print (json-encode state ) ) ))
     (with-temp-file cursorless-editor-state-file
       (json-insert state))))
 

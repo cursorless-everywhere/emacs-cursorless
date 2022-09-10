@@ -57,6 +57,7 @@
       (let ((payload (make-hash-table :size 2)))
         (puthash "command" "cursorless" payload)
         (puthash "cursorlessArgs" (json-serialize args) payload)
+        (cursorless-log (format  "sending command: %s" (cursorless--json-pretty-print (json-encode args))))
         (setq payload (json-serialize payload))
         (cursorless-send payload))
       ;; For now write an empty response. FIXME.
@@ -71,6 +72,22 @@
 ;;; ---------- emacs -> vscode over cursorless socket ----------
 (defvar cursorless-socket-buffer (generate-new-buffer "*cursorless-vscode-socket*"))
 
+(defun cursorless--json-pretty-print (s)
+  (with-temp-buffer
+    (insert s)
+    (json-pretty-print-buffer)
+    (buffer-string)))
+
+
+(defun cursorless-log (message)
+  (with-current-buffer (get-buffer-create "*cursorless-log*")
+    (goto-char (point-max))
+    (insert (make-string 70 ?=) "\n" message "\n")
+    (goto-char (point-max))
+    (let ((windows (get-buffer-window-list (current-buffer) nil t)))
+      (while windows
+        (set-window-point (car windows) (point-max))
+        (setq windows (cdr windows))))))
 (defun cursorless-sentinel (proc event)
   ;(message "cursorless-sentinel: %s(%s) %s" proc (process-status proc) event)
   (let ((status (process-status proc)))
@@ -98,6 +115,8 @@
     ;; (message "-- CURSORLESS sending: %s" cmd)
     (process-send-string p cmd)))
 
+(defvar cursorless-last-response nil)
+
 (defun cursorless-receive (response)
   ;; TODO: handle replies like "pong" which don't give a new state.
 
@@ -116,6 +135,8 @@
     (unless (and (local-variable-p 'cursorless-temporary-file)
                  (string-equal path cursorless-temporary-file))
       (error "Update to non-current buffer, ignoring!"))
+    (cursorless-log (format "receiving response: %S" (cursorless--json-pretty-print (json-encode response ) )))
+    (setq cursorless-last-response response)
     ;; Ideally we'd do a diff and then apply the minimal update. Instead I'm
     ;; just going to replace the whole buffer.
     (unless (file-exists-p contents-path) (error "No contents file!"))

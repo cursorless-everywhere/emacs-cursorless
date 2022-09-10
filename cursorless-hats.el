@@ -105,11 +105,14 @@ by a shape e.g. blue-bolt."
       (when (and cursorless-hats-buffer (buffer-live-p cursorless-hats-buffer))
         (with-current-buffer cursorless-hats-buffer (cursorless-clear-overlays))))
     (setq cursorless-hats-buffer buffer)
-    (cursorless-clear-overlays)
-    (-map (lambda(color-shape-positions)
-            (-let* (((color shape) (s-split "-" (symbol-name (car color-shape-positions))))
-                    (draw-hat (-partial 'cursorless-draw-hat (intern color) shape)))
-              (-map draw-hat (cdr color-shape-positions)))) (cdar json))))
+    (when buffer
+      (cursorless-log (format "updating hats on %S" buffer))
+      (with-current-buffer cursorless-hats-buffer
+        (cursorless-clear-overlays)
+        (-map (lambda(color-shape-positions)
+                (-let* (((color shape) (s-split "-" (symbol-name (car color-shape-positions))))
+                        (draw-hat (-partial 'cursorless-draw-hat (intern color) shape)))
+                  (-map draw-hat (cdr color-shape-positions)))) (cdar json))))))
 
 (defun cursorless-point-from-cursorless-position (cursorless-position)
   "Return the proper point for an alist from a cursorless position.
