@@ -39,7 +39,7 @@
     (message "cursorless-hats CHANGE RECURSIVE, set cursorless-updating-hats to nil to re-enable"))
   (unless (or cursorless-updating-hats cursorless-hats-update-timer)
     (setq cursorless-hats-update-timer
-          (run-with-idle-timer 0 nil 'cursorless-hats-update-callback))))
+          (run-with-idle-timer .075 nil 'cursorless-hats-update-callback))))
 
 (defvar cursorless-hats-watcher
   (progn
