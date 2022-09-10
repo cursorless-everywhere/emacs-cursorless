@@ -49,12 +49,17 @@
 (defun cursorless--send-state-when-idle ()
   (run-with-idle-timer 0 nil 'cursorless-send-state))
 
+(defun cursorless--should-draw-hats-p ()
+  (and (not (minibufferp))
+       (not (-contains? '(magit-log-mode magit-status-mode magit-revision-mode helpful-mode debugger-mode +doom-dashboard-mode) major-mode))
+       (not (s-equals? (buffer-name) "*cursorless-log*" ))))
+
 (defun cursorless-send-state ()
   ;; TODO: maybe figure out how to avoid dumping state if it didn't change?
   ;; but when will that happen?
   (when cursorless-sync-state
-    (unless (minibufferp) ;; don't do anything when in minibuffer
-      (progn ; measure-time "cursorless send state"
+    (when (cursorless--should-draw-hats-p)
+      (progn
         (setq cursorless-serial-number (+ 1 cursorless-serial-number))
         (cursorless-dump-state)))))
 
