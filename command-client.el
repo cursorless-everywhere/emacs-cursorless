@@ -4,7 +4,7 @@
 (defconst command-server-directory-name "emacs-command-server"
   "Name of directory to use for the emacs command server. Will be suffixed with the user's real UID.")
 
-(defun command-server-directory ()
+(defun cursorless-command-server-directory ()
   ;; TODO: on windows suffix should be empty, I think, assuming that
   ;; (temporary-file-directory) returns the appropriate user-specific temp dir
   ;; on windows.
@@ -13,23 +13,23 @@
      (concat command-server-directory-name suffix)
      (temporary-file-directory))))
 
-(defun command-server-start ()
+(defun cursorless-command-server-start ()
   (interactive)
-  (let ((d (command-server-directory)))
-   (unless (and (file-exists-p d) (file-directory-p d))
-     (make-directory d))))
+  (let ((d (cursorless-command-server-directory)))
+    (unless (and (file-exists-p d) (file-directory-p d))
+      (make-directory d))))
 
-(defun command-server-quit ()
+(defun cursorless-command-server-quit ()
   (interactive)
-  (delete-directory (command-server-directory) t))
+  (delete-directory (cursorless-command-server-directory) t))
 
-(command-server-start)
-(add-hook 'kill-emacs-hook 'command-server-quit)
+(cursorless-command-server-start)
+(add-hook 'kill-emacs-hook 'cursorless-command-server-quit)
 
-(defun command-server-trigger ()
+(defun cursorless-command-server-trigger ()
   "Trigger command execution."
   (interactive)
-  (let* ((command-directory (command-server-directory))
+  (let* ((command-directory (cursorless-command-server-directory))
          (request-path (expand-file-name "request.json" command-directory))
          (response-path (expand-file-name "response.json" command-directory))
          ;; Read request.json
@@ -133,17 +133,17 @@
            (anchor-column (gethash "character" anchor))
            (no-selection (and (eql line anchor-line) (eql column anchor-column))))
       ;; Update the selection.
-     (unless no-selection
-       (goto-char (point-min))
-       (forward-line anchor-line)
-       (forward-char anchor-column)
-       ;; location = (point), nomsg = t
-       (push-mark (point) t))
-     ;; Update cursor position.
-     (goto-line-column line column)
-     (if no-selection (deactivate-mark)
-       (activate-mark t)
-       (setq-local transient-mark-mode (cons 'only transient-mark-mode))))
+      (unless no-selection
+        (goto-char (point-min))
+        (forward-line anchor-line)
+        (forward-char anchor-column)
+        ;; location = (point), nomsg = t
+        (push-mark (point) t))
+      ;; Update cursor position.
+      (cursorless-goto-line-column line column)
+      (if no-selection (deactivate-mark)
+        (activate-mark t)
+        (setq-local transient-mark-mode (cons 'only transient-mark-mode))))
 
     ;; This keeps various things up-to-date, eg. hl-line-mode.
     ;; This also runs our send-state function.
@@ -163,6 +163,6 @@
 ;; (all-threads) ; emacs has (cooperative) threads! could use them? nah.
 
 
-(global-set-key (kbd "<C-f17>") 'command-server-trigger)
+(global-set-key (kbd "<C-f17>") 'cursorless-command-server-trigger)
 
 (provide 'command-client)

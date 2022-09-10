@@ -48,14 +48,14 @@
     (file-notify-add-watch cursorless-hats-file '(change) 'cursorless-hats-change-callback)))
 
 ;; FIXME: need to initialize hats whenever we switch to a buffer without them.
-(defun show-hats ()
+(defun cursorless-show-hats ()
   (interactive)
   (when cursorless-show-hats (cursorless-clear-overlays))
   (setq cursorless-show-hats t)
   (cursorless-hats-update-callback))
 
 ;;; FIXME: need to deinitialize hats in all buffers which have them.
-(defun hide-hats ()
+(defun cursorless-hide-hats ()
   (interactive)
   (when cursorless-show-hats (cursorless-clear-overlays))
   (setq cursorless-show-hats nil))
@@ -111,7 +111,7 @@ by a shape e.g. blue-bolt."
                     (draw-hat (-partial 'cursorless-draw-hat (intern color) shape)))
               (-map draw-hat (cdr color-shape-positions)))) (cdar json))))
 
-(defun point-from-cursorless-position (cursorless-position)
+(defun cursorless-point-from-cursorless-position (cursorless-position)
   "Return the proper point for an alist from a cursorless position.
 
 CURSORLESS-POSITION is an alist parsed from `cursorless-read-hats-json'."
@@ -140,7 +140,7 @@ dot gets rendered.
 
 CURSORLESS-POSITION is an alist parsed from `cursorless-read-hats-json'."
   (when-let* ((hat-color (cursorless--get-hat-color cursorless-color))
-              (hat-point (point-from-cursorless-position cursorless-position))
+              (hat-point (cursorless-point-from-cursorless-position cursorless-position))
               (hat-overlay (make-overlay hat-point (+ hat-point 1))))
     (overlay-put hat-overlay 'cursorless t)
     (cond ((null cursorless-shape)

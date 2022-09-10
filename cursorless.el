@@ -14,7 +14,7 @@
        (when cursorless-measure-time
         (message "%30s %3d ms" ',name (round (* 1000 (float-time (time-since time)))))))))
 
-(defun line-and-column (pos)
+(defun cursorless-line-and-column (pos)
   (list
    ;; I thought cursorless wanted 1-indexed line #s, but 0-indexed seems to make
    ;; it work properly?
@@ -22,10 +22,10 @@
   ;; (current-column) would be wrong here: we want # of characters since start
   ;; of line, not the logical position. (eg. tab counts as 1 char.)
    'column (save-excursion
-             (goto-char pos)
+                (goto-char pos)
              (- pos (line-beginning-position)))))
 
-(defun goto-line-column (line column)
+(defun cursorless-goto-line-column (line column)
   (goto-char (point-min))
   (forward-line line)
   ;; TODO: check we haven't gone over the end of the line
@@ -35,7 +35,7 @@
   (save-mark-and-excursion
     (save-restriction
       (widen)
-      (goto-line-column line column)
+      (cursorless-goto-line-column line column)
       (point))))
 
 

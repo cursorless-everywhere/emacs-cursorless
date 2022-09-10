@@ -91,7 +91,7 @@
     ;; where the cursors are. in emacs, only one cursor, so a singleton vector.
     ;; note that cursorless wants line/column, not offset.
     ;; TODO: if transient-mark-mode is enabled, represent the whole selection.
-    :cursors (vector (line-and-column (point))))
+    :cursors (vector (cursorless-line-and-column (point))))
    ))
 
 (defun cursorless-temporary-file-path ()
