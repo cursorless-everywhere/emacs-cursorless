@@ -1,5 +1,6 @@
 (require 'dash)
 (require 's)
+(require 'json)
 
 ;; READING & DRAWING HATS FROM CURSORLESS
 (defconst cursorless-hats-file

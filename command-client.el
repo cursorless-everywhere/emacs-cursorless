@@ -117,6 +117,30 @@
 
 (defvar cursorless-last-response nil)
 
+(defun cursorless--apply-selections (selections)
+  (when selections
+    ;; assume 1 cursor for now.
+    (let* ((cursor (elt selections 0))
+           (active (gethash "active" cursor))
+           (anchor (gethash "anchor" cursor))
+           (line   (gethash "line" active))
+           (column (gethash "character" active))
+           (anchor-line (gethash "line" anchor))
+           (anchor-column (gethash "character" anchor))
+           (no-selection (and (eql line anchor-line) (eql column anchor-column))))
+      ;; Update the selection.
+      (unless no-selection
+        (goto-char (point-min))
+        (forward-line anchor-line)
+        (forward-char anchor-column)
+        ;; location = (point), nomsg = t
+        (push-mark (point) t))
+      ;; Update cursor position.
+      (cursorless-goto-line-column line column)
+      (if no-selection (deactivate-mark)
+        (activate-mark t)
+        (setq-local transient-mark-mode (cons 'only transient-mark-mode))))))
+
 (defun cursorless-receive (response)
   ;; TODO: handle replies like "pong" which don't give a new state.
 
@@ -144,45 +168,10 @@
           (file-name-handler-alist '()))
       (insert-file-contents contents-path nil nil nil t))
     ;; Update cursor & selection.
-    ;; assume 1 cursor for now.
-    (let* ((cursor (elt (gethash "cursors" new-state) 0))
-           (active (gethash "active" cursor))
-           (anchor (gethash "anchor" cursor))
-           (line   (gethash "line" active))
-           (column (gethash "character" active))
-           (anchor-line (gethash "line" anchor))
-           (anchor-column (gethash "character" anchor))
-           (no-selection (and (eql line anchor-line) (eql column anchor-column))))
-      ;; Update the selection.
-      (unless no-selection
-        (goto-char (point-min))
-        (forward-line anchor-line)
-        (forward-char anchor-column)
-        ;; location = (point), nomsg = t
-        (push-mark (point) t))
-      ;; Update cursor position.
-      (cursorless-goto-line-column line column)
-      (if no-selection (deactivate-mark)
-        (activate-mark t)
-        (setq-local transient-mark-mode (cons 'only transient-mark-mode))))
-
+    (cursorless--apply-selections (gethash "cursors" new-state))
     ;; This keeps various things up-to-date, eg. hl-line-mode.
     ;; This also runs our send-state function.
     (run-hooks 'post-command-hook)))
-
-;; ping, state, stateWithContents, applyPrimaryEditorState (?),
-;; command, cursorless, pid
-;;
-;; command: runs a command
-;; cursorless: runs a command then serializes state afterward
-;;
-;; what is 'applyPrimaryEditorState'?
-;(cursorless-send "{\"command\": \"ping\"}")
-
-;; ;; see also
-;; (accept-process-output p 1) ; semi-blocking interface
-;; (all-threads) ; emacs has (cooperative) threads! could use them? nah.
-
 
 (global-set-key (kbd "<C-f17>") 'cursorless-command-server-trigger)
 
