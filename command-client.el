@@ -1,8 +1,26 @@
-;; Implements a command client for emacs, forwarding cursorless commands over a
+;;; command-client.el --- Description -*- lexical-binding: t; -*-
+;;; Commentary:
+;; Implements a command client for Emacs, forwarding cursorless commands over a
 ;; socket to the VSCode sidecar.
+;;
+;;; Code:
+
+(require 'dash)
+(require 's)
 
 (defconst command-server-directory-name "emacs-command-server"
-  "Name of directory to use for the emacs command server. Will be suffixed with the user's real UID.")
+  "Name of directory to use for the Emacs command server. Will be suffixed with the user's real UID.")
+
+(defvar cursorless--last-response-processed nil
+  "Store the last time a response was processed. This is useful for ensuring multiple
+commands don't stomp on each other.")
+
+(defvar cursorless-running-command nil
+  "Store whether a command is currently running to avoid certain actions (updating hats).")
+
+(defun cursorless--time-in-milliseconds ()
+  ;; TODO: there's probably a better way to do this.
+  (string-to-number (format-time-string "%s.%3N")))
 
 (defun cursorless-command-server-directory ()
   ;; TODO: on windows suffix should be empty, I think, assuming that
@@ -26,12 +44,13 @@
 (cursorless-command-server-start)
 (add-hook 'kill-emacs-hook 'cursorless-command-server-quit)
 
+
 (defun cursorless-command-server-trigger ()
   "Trigger command execution."
   (interactive)
+  (setq cursorless-running-command t)
   (let* ((command-directory (cursorless-command-server-directory))
          (request-path (expand-file-name "request.json" command-directory))
-         (response-path (expand-file-name "response.json" command-directory))
          ;; Read request.json
          (request (if (not (file-exists-p request-path))
                       (error "No such file: %s" request-path)
@@ -56,13 +75,9 @@
       (let ((payload (make-hash-table :size 2)))
         (puthash "command" "cursorless" payload)
         (puthash "cursorlessArgs" (json-serialize args) payload)
-        (cursorless-log (format  "sending command: %s" (cursorless--json-pretty-print (json-encode args))))
+        (cursorless-log (format  "sending command: %s" (cursorless--json-pretty-print (json-encode payload))))
         (setq payload (json-serialize payload))
-        (cursorless-send payload))
-      ;; For now write an empty response. FIXME.
-      (with-temp-file response-path
-        (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue :null))
-        (insert "\n")))
+        (cursorless-send uuid payload)))
      (t
       ;; TODO: write an error response.
       (error "Unrecognized command id %S" command-id)))))
@@ -71,39 +86,18 @@
 ;;; ---------- emacs -> vscode over cursorless socket ----------
 (defvar cursorless-socket-buffer (generate-new-buffer "*cursorless-vscode-socket*"))
 
-(defun cursorless--json-pretty-print (s)
-  (with-temp-buffer
-    (insert s)
-    (json-pretty-print-buffer)
-    (buffer-string)))
 
-
-(defun cursorless-log (message)
-  (with-current-buffer (get-buffer-create "*cursorless-log*")
-    (goto-char (point-max))
-    (insert (make-string 70 ?=) "\n" message "\n")
-    (goto-char (point-max))
-    (let ((windows (get-buffer-window-list (current-buffer) nil t)))
-      (while windows
-        (set-window-point (car windows) (point-max))
-        (setq windows (cdr windows))))))
-
-(defun cursorless-sentinel (proc event)
-                                        ;(message cursorless-sentinel: %s(%s) %s" proc (process-status proc) event)
+(defun cursorless-sentinel (uuid proc event)
   (let ((status (process-status proc)))
     (if (not (and (equal status 'closed)
                   (equal event "connection broken by remote peer\n")))
         (warn "Cursorless: unexpected error on communicating with vscode: %s, %s" status event)
-      (cursorless-receive
-       (with-current-buffer cursorless-socket-buffer
-         ;; (message "-- CURSORLESS received: %s"
-         ;;          (buffer-substring-no-properties (point-min) (point-max)))
-         (goto-char (point-min)) ;; json-parse-buffer parses forward from point.
-         (json-parse-buffer))))))
+      (cursorless-receive uuid
+                          (with-current-buffer cursorless-socket-buffer
+                            (goto-char (point-min)) ;; json-parse-buffer parses forward from point.
+                            (json-parse-buffer))))))
 
-(defun cursorless-send (cmd)
-  ;; TODO: need to figure out what to do if we issue another cursorless-send
-  ;; before the response for the first send is received.
+(defun cursorless-send (uuid cmd)
   (with-current-buffer cursorless-socket-buffer
     (erase-buffer))
   (let ((p (make-network-process
@@ -111,11 +105,11 @@
             :family 'local
             :remote (expand-file-name "~/.cursorless/vscode-socket")
             :buffer cursorless-socket-buffer
-            :sentinel 'cursorless-sentinel)))
-    ;; (message "-- CURSORLESS sending: %s" cmd)
-    (process-send-string p cmd)))
-
-(defvar cursorless-last-response nil)
+            :sentinel (-partial 'cursorless-sentinel uuid))))
+    ;; send the command 350ms after the last command was processed (or now).
+    ;; this adds a bit of latency to chaining commands, but they work.
+    (run-at-time (if cursorless--last-response-processed
+                     (+ (- cursorless--last-response-processed (cursorless--time-in-milliseconds)) .35)) nil 'process-send-string p cmd)))
 
 (defun cursorless--apply-selections (selections)
   (when selections
@@ -141,7 +135,13 @@
         (activate-mark t)
         (setq-local transient-mark-mode (cons 'only transient-mark-mode))))))
 
-(defun cursorless-receive (response)
+(defun cursorless--get-buffer-from-temporary-file (temporary-file)
+  (-find (lambda (buffer)
+           (with-current-buffer buffer
+             (and (local-variable-p 'cursorless-temporary-file)
+                  (string-equal temporary-file cursorless-temporary-file)))) (buffer-list)))
+
+(defun cursorless-receive (uuid response)
   ;; TODO: handle replies like "pong" which don't give a new state.
 
   ;; TODO: The command finished, process its results. We should (a) propagate
@@ -152,27 +152,39 @@
   ;; - figure out which buffer to update from "path"
   ;; - diff the "contentsPath" against buffer (or temporary file?) contents & apply updates
   ;; - update the cursor(s) from "cursors"
-  (let* ((new-state (gethash "newState" response))
-         (path (gethash "path" new-state))
-         (contents-path (gethash "contentsPath" new-state)))
-    ;; Find the buffer to update. For now, we just check it's the current buffer.
-    (unless (and (local-variable-p 'cursorless-temporary-file)
-                 (string-equal path cursorless-temporary-file))
-      (error "Update to non-current buffer, ignoring!"))
-    (cursorless-log (format "receiving response: %S" (cursorless--json-pretty-print (json-encode response ) )))
-    (setq cursorless-last-response response)
-    ;; Ideally we'd do a diff and then apply the minimal update. Instead I'm
-    ;; just going to replace the whole buffer.
-    (unless (file-exists-p contents-path) (error "No contents file!"))
-    (let ((coding-system-for-read 'utf-8)
-          (file-name-handler-alist '()))
-      (insert-file-contents contents-path nil nil nil t))
-    ;; Update cursor & selection.
-    (cursorless--apply-selections (gethash "cursors" new-state))
-    ;; This keeps various things up-to-date, eg. hl-line-mode.
-    ;; This also runs our send-state function.
-    (run-hooks 'post-command-hook)))
+  (cursorless-log (format "receiving response: %s" (cursorless--json-pretty-print (json-encode response))))
+  (if-let ((command-exception (gethash "commandException" response)))
+      (progn
+        (message command-exception)
+        (setq cursorless-running-command nil))
+    (let* ((new-state (gethash "newState" response))
+           (path (gethash "path" new-state))
+           (contents-path (gethash "contentsPath" new-state))
+           ;; Find the buffer to update.
+           (buffer-to-update (cursorless--get-buffer-from-temporary-file path)))
+      (if (not buffer-to-update)
+          (error "Couldn't find buffer to update, ignoring!"))
+      (with-current-buffer buffer-to-update
+        ;; Ideally we'd do a diff and then apply the minimal update. Instead I'm
+        ;; just going to replace the whole buffer.
+        (unless (file-exists-p contents-path) (error "No contents file!"))
+        (let ((coding-system-for-read 'utf-8)
+              (file-name-handler-alist '()))
+          (insert-file-contents contents-path nil nil nil t))
+        ;; Update cursor & selection.
+        (cursorless--apply-selections (gethash "cursors" new-state))
+        (cursorless-log (format "applied response"))
+        ;; For now write a mostly empty response. FIXME.
+        (with-temp-file (expand-file-name "response.json" (cursorless-command-server-directory))
+          (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue :null))
+          (insert "\n"))
+        (setq cursorless-running-command nil)
+        ;; This keeps various things up-to-date, eg. hl-line-mode.
+        ;; This also runs our send-state function.
+        (run-hooks 'post-command-hook)
+        (setq cursorless--last-response-processed (cursorless--time-in-milliseconds))))))
 
 (global-set-key (kbd "<C-f17>") 'cursorless-command-server-trigger)
 
 (provide 'command-client)
+;;; command-client.el ends here

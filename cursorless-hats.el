@@ -1,3 +1,9 @@
+;;; cursorless-hats.el --- Description -*- lexical-binding: t; -*-
+;;; Commentary:
+;; The code for managing hat decorations.
+;;
+;;; Code:
+
 (require 'dash)
 (require 's)
 (require 'json)
@@ -23,24 +29,39 @@
 (defvar cursorless-updating-hats nil)
 (defvar cursorless-hats-update-timer nil)
 (defun cursorless-hats-update-callback (&optional event)
-  ;; recursive invocations can occur if running cursorless-update-hats causes
-  ;; the hats file to change; eg. if cursorless-update-hats writes to *Messages*
-  ;; and we're visiting *Messages*. Without care this can lock up emacs.
-  (if cursorless-updating-hats
-      (warn "cursorless-hats-update-callback: recursive invocation detected!")
-    (unwind-protect
+  (unless cursorless-running-command
+    ;; recursive invocations can occur if running cursorless-update-hats causes
+    ;; the hats file to change; eg. if cursorless-update-hats writes to *Messages*
+    ;; and we're visiting *Messages*. Without care this can lock up emacs.
+    (if cursorless-updating-hats
         (progn
-          (setq cursorless-updating-hats t)
-          (setq cursorless-hats-update-timer nil)
-          (when cursorless-show-hats (cursorless-update-hats)))
+          (cursorless-log "cursorless-hats-update-callback: recursive invocation detected!")
+          (warn "cursorless-hats-update-callback: recursive invocation detected!"))
+      ;; the hats file could be stale which would make finding the right cursor positions fail
+      ;; with an end-of-buffer error. ignore these errors since they're normally remediated
+      ;; very quickly.
+      (if (not (ignore-error end-of-buffer
+                 (setq cursorless-updating-hats t)
+                 (when cursorless-show-hats
+                   (let ((hats-json (cursorless-read-hats-json)))
+                     (-each hats-json (lambda (file-hats)
+                                        (-let* (((file . hats) file-hats)
+                                                (file (symbol-name file))
+                                                (related-buffer (gethash file cursorless-temporary-file-buffers)))
+                                          (if (not related-buffer)
+                                              (message "temporary file not associated with a buffer: %S" file)
+                                            (cursorless-update-hats related-buffer hats)))))))
+                 t))
+          (cursorless-log "failed to update hats (end-of-buffer aka stale hats file)"))
       (setq cursorless-updating-hats nil))))
 
-(defun cursorless-hats-change-callback (&optional event)
-  (when cursorless-updating-hats
-    (message "cursorless-hats CHANGE RECURSIVE, set cursorless-updating-hats to nil to re-enable"))
-  (unless (or cursorless-updating-hats cursorless-hats-update-timer)
-    (setq cursorless-hats-update-timer
-          (run-with-idle-timer .075 nil 'cursorless-hats-update-callback))))
+(defun cursorless-hats-change-callback (event)
+  (when (equal (nth 1 event) 'renamed)
+    (when cursorless-updating-hats
+      (cursorless-log (format "cursorless-hats CHANGE RECURSIVE, set cursorless-updating-hats to nil to re-enable\n%s"  (backtrace-to-string)))
+      (message "cursorless-hats CHANGE RECURSIVE, set cursorless-updating-hats to nil to re-enable"))
+    (unless cursorless-updating-hats
+      (cursorless-hats-update-callback))))
 
 (defvar cursorless-hats-watcher
   (progn
@@ -55,16 +76,17 @@
   (setq cursorless-show-hats t)
   (cursorless-hats-update-callback))
 
-;;; FIXME: need to deinitialize hats in all buffers which have them.
 (defun cursorless-hide-hats ()
   (interactive)
-  (when cursorless-show-hats (cursorless-clear-overlays))
+  ;; TODO: filter buffer-list by a cursorless-mode marker
+  (-each (buffer-list) (lambda (buffer)
+                         (with-current-buffer buffer
+                             (cursorless-clear-overlays))))
   (setq cursorless-show-hats nil))
 
 (defun cursorless-clear-overlays ()
   (interactive)
-  (measure-time cursorless-clear-overlays
-                (remove-overlays nil nil 'cursorless t)))
+  (remove-overlays nil nil 'cursorless t))
 
 (defun cursorless-read-hats-json ()
   "Read the hats file and return an alist.
@@ -86,34 +108,16 @@ by a shape e.g. blue-bolt."
     (insert-file-contents-literally cursorless-hats-file)
     (json-parse-buffer :object-type 'alist)))
 
-(defvar cursorless-hats-buffer nil)
-
-(defun cursorless-update-hats ()
-  "Update the relevant buffer with the latest hats."
-  (let* ((json (cursorless-read-hats-json))
-         ;; TODO: only looks at the first file in the hats json.
-         (temporary-file (and (caar json) (symbol-name (caar json))))
-         (buffer (gethash temporary-file cursorless-temporary-file-buffers)))
-    (cond
-     ((null json)
-      (message "cursorless-update-hats: vscode-hats.json contained empty object."))
-     ((null temporary-file)
-      (warn "could not extract temporary file name from json"))
-     ((null buffer)
-      (warn "temporary file not associated with a buffer: %S" temporary-file)))
-    ;; clear the previous hat buffers overlays
-    (unless (equal buffer cursorless-hats-buffer)
-      (when (and cursorless-hats-buffer (buffer-live-p cursorless-hats-buffer))
-        (with-current-buffer cursorless-hats-buffer (cursorless-clear-overlays))))
-    (setq cursorless-hats-buffer buffer)
-    (when buffer
-      (cursorless-log (format "updating hats on %S" buffer))
-      (with-current-buffer cursorless-hats-buffer
-        (cursorless-clear-overlays)
-        (-map (lambda(color-shape-positions)
-                (-let* (((color shape) (s-split "-" (symbol-name (car color-shape-positions))))
-                        (draw-hat (-partial 'cursorless-draw-hat (intern color) shape)))
-                  (-map draw-hat (cdr color-shape-positions)))) (cdar json))))))
+(defun cursorless-update-hats (buffer hats)
+  "Update BUFFER with HATS."
+  (with-current-buffer buffer
+    (cursorless-log (format "updating hats on %S" buffer))
+    (cursorless-clear-overlays)
+    (-map (lambda(color-shape-positions)
+            (-let* (((color shape) (s-split "-" (symbol-name (car color-shape-positions))))
+                    (draw-hat (-partial 'cursorless-draw-hat (intern color) shape)))
+              (-map draw-hat (cdr color-shape-positions)))) hats)
+    (cursorless-log (format "done updating hats on %S" buffer))))
 
 (defun cursorless-point-from-cursorless-position (cursorless-position)
   "Return the proper point for an alist from a cursorless position.
@@ -121,10 +125,9 @@ by a shape e.g. blue-bolt."
 CURSORLESS-POSITION is an alist parsed from `cursorless-read-hats-json'."
   (let ((pos (alist-get 'start cursorless-position)))
     (save-excursion
-      (goto-char (window-start))
-      ;; ideally we'd use line-number-at-pos (window-start), see https://emacs.stackexchange.com/a/3822
-      ;; for context. this offers roughly a 10x speedup.
-      (forward-line (-  (alist-get 'line pos) (1- (string-to-number (format-mode-line "%l")))))
+      (goto-char (point-min))
+      ;; consider using https://emacs.stackexchange.com/a/3822. this offers roughly a 10x speedup.
+      (forward-line (alist-get 'line pos))
       (forward-char (alist-get 'character pos))
       (point))))
 
@@ -158,3 +161,4 @@ CURSORLESS-POSITION is an alist parsed from `cursorless-read-hats-json'."
               (format "Unable to find mapping for cursorless shape %s." cursorless-shape) :error)))))
 
 (provide 'cursorless-hats)
+;;; cursorless-hats.el ends here

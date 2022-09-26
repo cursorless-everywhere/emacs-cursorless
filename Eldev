@@ -1,0 +1,7 @@
+; -*- mode: emacs-lisp; lexical-binding: t -*-
+(eldev-use-package-archive 'melpa)
+
+(setq eldev-project-main-file "cursorless.el")
+
+(setq eldev-files-to-package '("cursorless.el" "cursorless-hats.el" "cursorless-state.el" "command-client.el"))
+

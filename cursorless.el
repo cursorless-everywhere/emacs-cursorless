@@ -1,18 +1,19 @@
+;;; cursorless.el --- Voice based structural editing with Cursorless -*- lexical-binding: t; -*-
+;;
+;; Version: 0.0.1
+;; Package-Requires: ((emacs "28.1") (dash "2.19.1") (s "1.13.1") (yaml "0.5.1"))
+;; Keywords: cursorless, voice
+;; Homepage: https://github.com/cursorless-everywhere/emacs-cursorless
+;;
+;; This file is not part of GNU Emacs.
+;;
+;;; Code:
+
 (require 'cl-macs)
 (require 'svg)
 (require 'filenotify)
 
-
-;; Utilities.
 (defconst cursorless-directory "~/.cursorless/")
-
-(defvar cursorless-measure-time nil)
-(defmacro measure-time (name &rest body)
-  "Measure the time it takes to evaluate BODY."
-  `(let ((time (current-time)))
-     (prog1 (progn ,@body)
-       (when cursorless-measure-time
-        (message "%30s %3d ms" ',name (round (* 1000 (float-time (time-since time)))))))))
 
 (defun cursorless-line-and-column (pos)
   (list
@@ -42,7 +43,10 @@
 ;; Load everything.
 (let ((load-path (cons (file-name-directory (or load-file-name (buffer-file-name)))
                        load-path)))
+  (require 'cursorless-log)
   (require 'cursorless-state)
   (require 'cursorless-hats)
   (require 'command-client))
+
 (provide 'cursorless)
+;;; cursorless.el ends here

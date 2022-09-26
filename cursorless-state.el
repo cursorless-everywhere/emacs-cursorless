@@ -1,4 +1,8 @@
-;; SYNCING OUR STATE TO CURSORLESS
+;;; cursorless-state.el.el --- Description -*- lexical-binding: t; -*-
+;;; Commentary:
+;; The code for syncing editor state with vscode.
+;;
+;;; Code:
 
 (defvar cursorless-serial-number 0)
 (defconst cursorless-editor-state-file
@@ -33,6 +37,8 @@
 ;; TODO: this doesn't work for comint buffers, which can update without the user
 ;; issuing a command. Use after-change-functions instead/in addition?
 (add-hook 'post-command-hook 'cursorless--send-state-when-idle)
+;; TODO: address the issue of vscode autorevert changing cursor positions.
+(defvar cursorless-send-state-timer (run-with-idle-timer .1 t 'cursorless-send-state))
 
 ;; TODO: do we really need cursorless-{enable,disable}-sync?
 (defun cursorless-enable-sync ()
@@ -51,30 +57,33 @@
 
 (defun cursorless--should-draw-hats-p ()
   (and (not (minibufferp))
-       (not (-contains? '(magit-log-mode magit-status-mode magit-revision-mode helpful-mode debugger-mode +doom-dashboard-mode) major-mode))
-       (not (s-equals? (buffer-name) "*cursorless-log*" ))))
+       (not (s-equals-p (buffer-name) "*cursorless-log*"))
+       ;; TODO: warn about not drawing hats on huge buffers
+       (< (buffer-size) 5000000)))
 
 (defun cursorless-send-state ()
   ;; TODO: maybe figure out how to avoid dumping state if it didn't change?
   ;; but when will that happen?
-  (when cursorless-sync-state
-    (when (cursorless--should-draw-hats-p)
-      (progn
-        (setq cursorless-serial-number (+ 1 cursorless-serial-number))
-        (cursorless-dump-state)))))
+  (when (and cursorless-sync-state
+             (cursorless--should-draw-hats-p)
+             (not cursorless-running-command))
+    (setq cursorless-serial-number (+ 1 cursorless-serial-number))
+    (cursorless-dump-state)))
 
 (defun cursorless-dump-state ()
   (interactive)
   ;; TODO: only write if buffer contents have changed since last write!
-  ;; TODO: check if file is too damn big.
   ;; Use utf-8 and avoid auto-compression etc based on file extension.
   (let ((coding-system-for-write 'utf-8)
         (file-name-handler-alist '()))
     (write-region (point-min) (point-max) (cursorless-temporary-file-path) nil 'ignore-message))
-  (let ((state (cursorless-get-state)))
-    (cursorless-log (format "dumping state for %S \n %S" (current-buffer) (cursorless--json-pretty-print (json-encode state ) ) ))
-    (with-temp-file cursorless-editor-state-file
-      (json-insert state))))
+  (let ((state (cursorless-get-state))
+        (temp-file (make-temp-file "emacs-editor-state-")))
+    (cursorless-log (format "dumping state for %S \n %s" (current-buffer) (cursorless--json-pretty-print (json-encode state ) ) ))
+    (with-temp-buffer
+      (json-insert state)
+      (write-region (point-min) (point-max) temp-file nil 'ignore-message))
+    (rename-file temp-file cursorless-editor-state-file t)))
 
 ;; Serialize editor state to file, at the moment:
 ;; - a serial number
@@ -92,20 +101,20 @@
    (list
     :path (or (buffer-file-name) :null)
     :temporaryFilePath (cursorless-temporary-file-path)
-    :firstVisibleLine (line-number-at-pos (window-start))
+    :firstVisibleLine (1- (line-number-at-pos (window-start)))
     :lastVisibleLine  (line-number-at-pos (window-end))
     ;; where the cursors are. in emacs, only one cursor, so a singleton vector.
     ;; note that cursorless wants line/column, not offset.
     ;; TODO: if transient-mark-mode is enabled, represent the whole selection.
-    :cursors (vector (cursorless-line-and-column (point))))
-   ))
+    :cursors (vector (cursorless-line-and-column (point))))))
 
-(defun cursorless-temporary-file-path ()
+(defun cursorless-temporary-file-path (&optional given-extension)
+  "Allows passing in an already known extension, which is useful for testing."
   (unless (and (local-variable-p 'cursorless-temporary-file)
                ;; If file has been deleted we must make a new one.
                (file-exists-p cursorless-temporary-file))
-    (let* ((file-extension (and (buffer-file-name)
-                                (file-name-extension (buffer-file-name))))
+    (let* ((file-extension (or (and (buffer-file-name)
+                                    (file-name-extension (buffer-file-name))) given-extension))
            (suffix (if file-extension (concat "." file-extension) ""))
            (dirname (concat (file-name-as-directory temporary-file-directory)
                             "cursorless.el/"))
@@ -118,4 +127,26 @@
                cursorless-temporary-file-buffers)))
   cursorless-temporary-file)
 
+(defun cursorless--get-window-state (window)
+  (let ((current-window (selected-window)))
+    (with-selected-window window
+      (if (not (window-parameter window 'cursorless-id))
+          (set-window-parameter window 'cursorless-id (int-to-string (abs (random)))))
+      (list
+       :id (window-parameter window 'cursorless-id)
+       :active (or (eq window current-window) :false)
+       :path (or (buffer-file-name) :null)
+       :temporaryFilePath (cursorless-temporary-file-path)
+       :firstVisibleLine (line-number-at-pos (window-start))
+       ;; window-end needs update t for some reason... some times. maybe it's calling the redraw
+       ;; command from the minibuffer, that would make the window smaller right
+       ;; before getting the window-end.
+       :lastVisibleLine  (line-number-at-pos (window-end window t))
+       ;; where the cursors are. in emacs, only one cursor, so a singleton vector.
+       ;; note that cursorless wants line/column, not offset.
+       ;; TODO: if transient-mark-mode is enabled, represent the whole selection.
+       :cursors (vector (cursorless-line-and-column (point)))))))
+
+
 (provide 'cursorless-state)
+;;; cursorless-state.el ends here
