@@ -8,6 +8,8 @@
 (require 'dash)
 (require 's)
 
+(require 'command-server)
+
 (defconst command-server-directory-name "emacs-command-server"
   "Name of directory to use for the Emacs command server. Will be suffixed with the user's real UID.")
 
@@ -45,59 +47,36 @@ commands don't stomp on each other.")
 (add-hook 'kill-emacs-hook 'cursorless-command-server-quit)
 
 
-(defun cursorless-command-server-trigger ()
-  "Trigger command execution."
-  (interactive)
+(defvar cursorless--current-command-uuid nil)
+
+(defun cursorless--command-server-handler (command-uuid wait-for-finish args)
+  ;; TODO: we ignore wait-for-finish
   (setq cursorless-running-command t)
-  (let* ((command-directory (cursorless-command-server-directory))
-         (request-path (expand-file-name "request.json" command-directory))
-         ;; Read request.json
-         (request (if (not (file-exists-p request-path))
-                      (error "No such file: %s" request-path)
-                    (with-temp-buffer
-                      (insert-file-contents-literally request-path)
-                      (json-parse-buffer))))
-         (command-id (gethash "commandId" request))
-         (args (gethash "args" request))
-         (wait-for-finish (gethash "waitForFinish" request))
-         (return-command-output (gethash "returnCommandOutput" request))
-         (uuid (gethash "uuid" request)))
+  (setq cursorless--current-command-uuid command-uuid)
+  (let ((payload (make-hash-table :size 2)))
+    (puthash "command" "cursorless" payload)
+    (puthash "cursorlessArgs" (json-serialize args) payload)
+    (cursorless-log (format  "sending command: %s" (cursorless--json-pretty-print (json-encode payload))))
+    (setq payload (json-serialize payload))
+    (cursorless-send payload)))
 
-    ;; TODO: Eventually I'd like to make it possible to run arbitrary emacs lisp
-    ;; code via the command server. For now, though, I'm just going to
-    ;; special-case cursorless.
-    (cond
-     ((string-equal command-id "cursorless.command")
-      ;; Forward to vscode. TODO: When wait-for-finish is true, we should wait
-      ;; _asynchronously_ to hear back from vscode. So we have to set up a
-      ;; callback which writes to response-path. Maybe fork a thread? or have a
-      ;; dedicated thread?
-      (let ((payload (make-hash-table :size 2)))
-        (puthash "command" "cursorless" payload)
-        (puthash "cursorlessArgs" (json-serialize args) payload)
-        (cursorless-log (format  "sending command: %s" (cursorless--json-pretty-print (json-encode payload))))
-        (setq payload (json-serialize payload))
-        (cursorless-send uuid payload)))
-     (t
-      ;; TODO: write an error response.
-      (error "Unrecognized command id %S" command-id)))))
-
+(add-to-list 'command-server-command-handlers
+             '("cursorless.command" . cursorless--command-server-handler))
 
 ;;; ---------- emacs -> vscode over cursorless socket ----------
 (defvar cursorless-socket-buffer (generate-new-buffer "*cursorless-vscode-socket*"))
 
 
-(defun cursorless-sentinel (uuid proc event)
+(defun cursorless-sentinel (proc event)
   (let ((status (process-status proc)))
     (if (not (and (equal status 'closed)
                   (equal event "connection broken by remote peer\n")))
         (warn "Cursorless: unexpected error on communicating with vscode: %s, %s" status event)
-      (cursorless-receive uuid
-                          (with-current-buffer cursorless-socket-buffer
+      (cursorless-receive (with-current-buffer cursorless-socket-buffer
                             (goto-char (point-min)) ;; json-parse-buffer parses forward from point.
                             (json-parse-buffer))))))
 
-(defun cursorless-send (uuid cmd)
+(defun cursorless-send (cmd)
   (with-current-buffer cursorless-socket-buffer
     (erase-buffer))
   (let ((p (make-network-process
@@ -105,7 +84,7 @@ commands don't stomp on each other.")
             :family 'local
             :remote (expand-file-name "~/.cursorless/vscode-socket")
             :buffer cursorless-socket-buffer
-            :sentinel (-partial 'cursorless-sentinel uuid))))
+            :sentinel 'cursorless-sentinel)))
     ;; send the command 350ms after the last command was processed (or now).
     ;; this adds a bit of latency to chaining commands, but they work.
     (run-at-time (if cursorless--last-response-processed
@@ -141,7 +120,7 @@ commands don't stomp on each other.")
              (and (local-variable-p 'cursorless-temporary-file)
                   (string-equal temporary-file cursorless-temporary-file)))) (buffer-list)))
 
-(defun cursorless-receive (uuid response)
+(defun cursorless-receive (response)
   ;; TODO: handle replies like "pong" which don't give a new state.
 
   ;; TODO: The command finished, process its results. We should (a) propagate
@@ -174,17 +153,13 @@ commands don't stomp on each other.")
         ;; Update cursor & selection.
         (cursorless--apply-selections (gethash "cursors" new-state))
         (cursorless-log (format "applied response"))
-        ;; For now write a mostly empty response. FIXME.
-        (with-temp-file (expand-file-name "response.json" (cursorless-command-server-directory))
-          (json-insert `(:uuid ,uuid :warnings [] :error :null :returnValue :null))
-          (insert "\n"))
         (setq cursorless-running-command nil)
         ;; This keeps various things up-to-date, eg. hl-line-mode.
         ;; This also runs our send-state function.
+        (command-server--write-response cursorless--current-command-uuid)
         (run-hooks 'post-command-hook)
         (setq cursorless--last-response-processed (cursorless--time-in-milliseconds))))))
 
-(global-set-key (kbd "<C-f17>") 'cursorless-command-server-trigger)
 
 (provide 'command-client)
 ;;; command-client.el ends here
