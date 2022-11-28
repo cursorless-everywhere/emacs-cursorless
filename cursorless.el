@@ -46,7 +46,7 @@
   (require 'cursorless-log)
   (require 'cursorless-state)
   (require 'cursorless-hats)
-  (require 'command-client))
+  (require 'cursorless-command-client))
 
 (provide 'cursorless)
 ;;; cursorless.el ends here

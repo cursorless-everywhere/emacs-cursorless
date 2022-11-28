@@ -1,4 +1,4 @@
-;;; command-client.el --- Description -*- lexical-binding: t; -*-
+;;; cursorless-command-client.el --- Description -*- lexical-binding: t; -*-
 ;;; Commentary:
 ;; Implements a command client for Emacs, forwarding cursorless commands over a
 ;; socket to the VSCode sidecar.
@@ -161,5 +161,5 @@ commands don't stomp on each other.")
         (setq cursorless--last-response-processed (cursorless--time-in-milliseconds))))))
 
 
-(provide 'command-client)
-;;; command-client.el ends here
+(provide 'cursorless-command-client)
+;;; cursorless-command-client.el ends here
