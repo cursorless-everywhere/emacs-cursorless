@@ -38,7 +38,7 @@
 ;; issuing a command. Use after-change-functions instead/in addition?
 (add-hook 'post-command-hook 'cursorless--send-state-when-idle)
 ;; TODO: address the issue of vscode autorevert changing cursor positions.
-(defvar cursorless-send-state-timer (run-with-idle-timer .1 t 'cursorless-send-state))
+(defvar cursorless-send-state-timer (run-with-idle-timer .2 t 'cursorless-send-state))
 
 ;; TODO: do we really need cursorless-{enable,disable}-sync?
 (defun cursorless-enable-sync ()
