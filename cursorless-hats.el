@@ -81,7 +81,7 @@
   ;; TODO: filter buffer-list by a cursorless-mode marker
   (-each (buffer-list) (lambda (buffer)
                          (with-current-buffer buffer
-                             (cursorless-clear-overlays))))
+                           (cursorless-clear-overlays))))
   (setq cursorless-show-hats nil))
 
 (defun cursorless-clear-overlays ()
