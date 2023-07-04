@@ -5,7 +5,6 @@
 ;;; Code:
 
 (require 'dash)
-(require 's)
 (require 'json)
 
 ;; READING & DRAWING HATS FROM CURSORLESS
@@ -115,7 +114,7 @@ by a shape e.g. blue-bolt."
     (cursorless-log (format "updating hats on %S" buffer))
     (cursorless-clear-overlays)
     (-map (lambda(color-shape-positions)
-            (-let* (((color shape) (s-split "-" (symbol-name (car color-shape-positions))))
+            (-let* (((color shape) (string-split (symbol-name (car color-shape-positions)) "-"))
                     (draw-hat (-partial 'cursorless-draw-hat (intern color) shape)))
               (-map draw-hat (cdr color-shape-positions)))) hats)
     (cursorless-log (format "done updating hats on %S" buffer))))

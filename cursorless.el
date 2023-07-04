@@ -1,7 +1,7 @@
 ;;; cursorless.el --- Voice based structural editing with Cursorless -*- lexical-binding: t; -*-
 ;;
 ;; Version: 0.0.1
-;; Package-Requires: ((emacs "28.1") (dash "2.19.1") (s "1.13.1") (yaml "0.5.1") (command-server "0.0.1"))
+;; Package-Requires: ((emacs "28.1") (dash "2.19.1") (yaml "0.5.1") (command-server "0.0.1"))
 ;; Keywords: cursorless, voice
 ;; Homepage: https://github.com/cursorless-everywhere/emacs-cursorless
 ;;

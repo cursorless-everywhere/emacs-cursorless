@@ -6,7 +6,6 @@
 ;;; Code:
 
 (require 'dash)
-(require 's)
 
 (require 'command-server)
 
