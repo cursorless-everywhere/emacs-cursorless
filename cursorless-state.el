@@ -57,7 +57,7 @@
 
 (defun cursorless--should-draw-hats-p ()
   (and (not (minibufferp))
-       (not (s-equals-p (buffer-name) "*cursorless-log*"))
+       (not (string-equal (buffer-name) "*cursorless-log*"))
        ;; TODO: warn about not drawing hats on huge buffers
        (< (buffer-size) 5000000)))
 
