@@ -4,7 +4,6 @@
 ;;
 ;;; Code:
 
-(require 'dash)
 (require 'json)
 
 ;; READING & DRAWING HATS FROM CURSORLESS
@@ -44,13 +43,15 @@
                  (setq cursorless-updating-hats t)
                  (when cursorless-show-hats
                    (let ((hats-json (cursorless-read-hats-json)))
-                     (-each hats-json (lambda (file-hats)
-                                        (-let* (((file . hats) file-hats)
-                                                (file (symbol-name file))
-                                                (related-buffer (gethash file cursorless-temporary-file-buffers)))
-                                          (if (not related-buffer)
-                                              (message "temporary file not associated with a buffer: %S" file)
-                                            (cursorless-update-hats related-buffer hats)))))))
+                     (seq-each (lambda (file-hats)
+                                 (let* ((file (car file-hats))
+					(hats (cdr file-hats))
+                                        (file (symbol-name file))
+                                        (related-buffer (gethash file cursorless-temporary-file-buffers)))
+                                   (if (not related-buffer)
+                                       (message "temporary file not associated with a buffer: %S" file)
+                                     (cursorless-update-hats related-buffer hats)))) hats-json)))
+
                  t))
           (cursorless-log "failed to update hats (end-of-buffer aka stale hats file)"))
       (setq cursorless-updating-hats nil))))
@@ -79,9 +80,9 @@
 (defun cursorless-hide-hats ()
   (interactive)
   ;; TODO: filter buffer-list by a cursorless-mode marker
-  (-each (buffer-list) (lambda (buffer)
-                         (with-current-buffer buffer
-                           (cursorless-clear-overlays))))
+  (seq-each (lambda (buffer)
+              (with-current-buffer buffer
+                (cursorless-clear-overlays))) (buffer-list))
   (setq cursorless-show-hats nil))
 
 (defun cursorless-clear-overlays ()
@@ -113,10 +114,12 @@ by a shape e.g. blue-bolt."
   (with-current-buffer buffer
     (cursorless-log (format "updating hats on %S" buffer))
     (cursorless-clear-overlays)
-    (-map (lambda(color-shape-positions)
-            (-let* (((color shape) (string-split (symbol-name (car color-shape-positions)) "-"))
-                    (draw-hat (-partial 'cursorless-draw-hat (intern color) shape)))
-              (-map draw-hat (cdr color-shape-positions)))) hats)
+    (seq-map (lambda(color-shape-positions)
+               (let* ((color-shape (string-split (symbol-name (car color-shape-positions)) "-"))
+		      (color (car color-shape))
+		      (shape (cadr color-shape))
+                      (draw-hat (apply-partially 'cursorless-draw-hat (intern color) shape)))
+		 (seq-map draw-hat (cdr color-shape-positions)))) hats)
     (cursorless-log (format "done updating hats on %S" buffer))))
 
 (defun cursorless-point-from-cursorless-position (cursorless-position)

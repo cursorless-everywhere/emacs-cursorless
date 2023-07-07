@@ -34,9 +34,9 @@
               (format-time-string "%s.%3N") "\n"
               (format "  current-buffer: %S" buffer-logged-from) "\n"
               (format "  line/col: %S" line-col) "\n"
-              (string-join (-map (lambda(value)
-                                   (format "  %20s: %S" value (symbol-value value)))
-                                 '(cursorless-running-command cursorless-updating-hats cursorless--last-response-processed)) "\n") "\n\n"
+              (string-join (seq-map (lambda(value)
+                                      (format "  %20s: %S" value (symbol-value value)))
+                                    '(cursorless-running-command cursorless-updating-hats cursorless--last-response-processed)) "\n") "\n\n"
               "  " message "\n")
       (goto-char (point-max))
       (let ((windows (get-buffer-window-list (current-buffer) nil t)))
