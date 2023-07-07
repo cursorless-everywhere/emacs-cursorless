@@ -79,7 +79,7 @@
     (write-region (point-min) (point-max) (cursorless-temporary-file-path) nil 'ignore-message))
   (let ((state (cursorless-get-state))
         (temp-file (make-temp-file "emacs-editor-state-")))
-    (cursorless-log (format "dumping state for %S \n %s" (current-buffer) (cursorless--json-pretty-print (json-encode state ) ) ))
+    (cursorless-log (format "dumping state for %S \n %s" (current-buffer) (cursorless--json-pretty-print (json-encode state))))
     (with-temp-buffer
       (json-insert state)
       (write-region (point-min) (point-max) temp-file nil 'ignore-message))
@@ -118,6 +118,7 @@
            (suffix (if file-extension (concat "." file-extension) ""))
            (dirname (concat (file-name-as-directory temporary-file-directory)
                             "cursorless.el/"))
+	   ;; TODO: what is this regex for?
            (name (replace-regexp-in-string "[*/\\\\]" "_" (buffer-name)))
            (prefix (concat dirname name "-")))
       (make-directory dirname t)

@@ -5,8 +5,6 @@
 ;;
 ;;; Code:
 
-(require 'dash)
-
 (require 'command-server)
 
 (defconst command-server-directory-name "emacs-command-server"
@@ -114,10 +112,10 @@ commands don't stomp on each other.")
         (setq-local transient-mark-mode (cons 'only transient-mark-mode))))))
 
 (defun cursorless--get-buffer-from-temporary-file (temporary-file)
-  (-find (lambda (buffer)
-           (with-current-buffer buffer
-             (and (local-variable-p 'cursorless-temporary-file)
-                  (string-equal temporary-file cursorless-temporary-file)))) (buffer-list)))
+  (seq-find (lambda (buffer)
+              (with-current-buffer buffer
+		(and (local-variable-p 'cursorless-temporary-file)
+                     (string-equal temporary-file cursorless-temporary-file)))) (buffer-list)))
 
 (defun cursorless-receive (response)
   ;; TODO: handle replies like "pong" which don't give a new state.
