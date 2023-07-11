@@ -19,7 +19,7 @@
   (list
    ;; I thought cursorless wanted 1-indexed line #s, but 0-indexed seems to make
    ;; it work properly?
-   'line (1- (line-number-at-pos pos t))
+   'line (1- (line-number-at-pos pos nil))
    ;; (current-column) would be wrong here: we want # of characters since start
    ;; of line, not the logical position. (eg. tab counts as 1 char.)
    'column (save-excursion
