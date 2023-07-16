@@ -79,7 +79,7 @@ commands don't stomp on each other.")
   (let ((p (make-network-process
             :name "cursorless"
             :family 'local
-            :remote (expand-file-name "~/.cursorless/vscode-socket")
+            :remote (expand-file-name (concat cursorless-directory "/vscode-socket"))
             :buffer cursorless-socket-buffer
             :sentinel 'cursorless-sentinel)))
     ;; send the command 350ms after the last command was processed (or now).
