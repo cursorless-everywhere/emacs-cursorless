@@ -57,7 +57,8 @@
       (setq cursorless-updating-hats nil))))
 
 (defun cursorless-hats-change-callback (event)
-  (when (equal (nth 1 event) 'renamed)
+  (when (and (equal (nth 1 event) 'changed)
+	     (string-equal (nth 2 event) (expand-file-name cursorless-hats-file)))
     (when cursorless-updating-hats
       (cursorless-log (format "cursorless-hats CHANGE RECURSIVE, set cursorless-updating-hats to nil to re-enable\n%s"  (backtrace-to-string)))
       (message "cursorless-hats CHANGE RECURSIVE, set cursorless-updating-hats to nil to re-enable"))
@@ -68,7 +69,9 @@
   (progn
     (when (and (boundp 'cursorless-hats-watcher) cursorless-hats-watcher)
       (file-notify-rm-watch cursorless-hats-watcher))
-    (file-notify-add-watch cursorless-hats-file '(change) 'cursorless-hats-change-callback)))
+    ;; We have to watch the whole directory for changes otherwise we can't get notifications about
+    ;; the hats file being created on macOS.
+    (file-notify-add-watch cursorless-directory '(change) 'cursorless-hats-change-callback)))
 
 ;; FIXME: need to initialize hats whenever we switch to a buffer without them.
 (defun cursorless-show-hats ()
